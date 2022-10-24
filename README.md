@@ -6,16 +6,15 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - [Linux System Call Table - ChromeOS Doc](https://chromium.googlesource.com/chromiumos/docs/+/HEAD/constants/syscalls.md)
 
 # Scratch
+- use jit runner to try various programs written in C/asm
+  - next sum.c
 - read volume 2 of intel SDM
   - roughly done for chapter 2. content for IA-32e mode and AVX are skipped
 	- check mov instruction.
 	- next chapter 6.
-- TODO: setup 'git push'
 - TODO: use my assembler to assemble hello.s
-- why hello-libc.s does not work?
-- TODO: implement `jit_run` <+++++++++++++++++++++
 
-# Instruction Format
+## Instruction Format
 Group 1
 LOCK 0xF0
 REPNE/REPNZ 0xF2

@@ -1,5 +1,11 @@
+sum:
+	gcc -m32 sum.c
+	./a.out
+	objdump -d ./a.out > /tmp/sum.asm
+
 hello-libc:
-	gcc hello-libc.s
+	gcc -m32 -static hello-libc.s
+	objdump -d ./a.out > /tmp/hello-libc.asm
 	./a.out
 
 hello:

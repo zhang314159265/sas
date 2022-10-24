@@ -8,15 +8,6 @@
 #include "str.h"
 #include "search.h"
 
-/*
- * Example call:
- *   assemble_line("mov    $0x4,%eax");
- */
-void assemble_line(const char* line) {
-	printf("Assemble this line: %s\n", line);
-	assert(false && "assemble_line ni");
-}
-
 void jit_run(struct str* bin_code) {
 	void *fnaddr = bin_code->buf;
 	printf("fnaddr %p\n", fnaddr);
@@ -141,50 +132,4 @@ struct str parse_text_code(const char *text_code, const char* argnames[], int ar
 		cur = next;
 	}
 	return bin_code;
-}
-
-void try_jit_run() {
-	#if 0
-	/*
-	 * print a message and then exit the process
-	 */
-	const char *msg = "hello, world!\n";
-	int msglen = strlen(msg);
-	const char* argnames[] = {"MSG", "MSGLEN", NULL};
-	int argvals[] = {(int) msg, (int) msglen};
-	printf("msg address %p\n", msg);
-
-	const char *text_code = R"(
-   0:   b8 04 00 00 00          mov    $0x4,%eax
-   5:   bb 01 00 00 00          mov    $0x1,%ebx
-   # a:   b9 00 00 00 00          mov    $0x0,%ecx
-   a:   b9 <MSG>          mov    $0x0,%ecx
-   f:   ba <MSGLEN>          mov    $0x11,%edx
-  14:   cd 80                   int    $0x80
-  16:   b8 01 00 00 00          mov    $0x1,%eax
-  1b:   bb 00 00 00 00          mov    $0x0,%ebx
-  20:   cd 80                   int    $0x80
-  )";
-	#endif
-
-	#if 1
-	// return a value
-	const char *argnames[] = {NULL};
-	int argvals[] = {};
-	const char *text_code = R"(
-	  b8 30 00 00 00
-		c3
-	)";
-	#endif
-
-	struct str bin_code = parse_text_code(text_code, argnames, argvals);
-	str_hexdump(&bin_code);
-	jit_run(&bin_code);
-	str_free(&bin_code);
-}
-
-int main(void) {
-	try_jit_run();
-	printf("bye\n");
-	return 0;
 }
