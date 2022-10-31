@@ -1,16 +1,24 @@
 Name, OPCode, comment
 ============
-add, 0x83/0, "Add sign extended imm8 to r/m"
-call, 0xe8, "Call relative"
+add, 0x01, "Add r32 to r/m32"
+add, 0x83/0, "Add sign extended imm8 to r/m32"
+call, 0xe8, "Call relative using 32 bit displacement"
+cmp, 0x83/7, "Compare imm8 with r/m32"
 int, 0xcd, "imm8 represents the interrupt vector"
+jle, 0x7e, "relative jump using 8 bit displacement if cc=LE"
+jmp, 0xeb, "relative jump using 8 bit displacement"
+leave, 0xc9
 mov, 0x89, "move r32 to r/m32" # store
 mov, 0x8b, "move r/m32 to r32" # load
+mov, 0xc7/0, "Move imm32 to r/m32"
 mov, 0xb8+, "move imm32 to r32"
 
 pop, 0x58+, "Pop top of stack into r32"
 popa, 0x61, "Pop all"
 push, 0x50+, "Push r32 into the stack"
 push, 0x68, "Push imm16/imm32 to the stack"
+push, 0xff/6, "Push r/m32 to the stack"
 pusha, 0x60
 
 ret, 0xc3
+sub, 0x83/5, "Substract sign-extended imm8 from r/m32"

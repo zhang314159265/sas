@@ -1,5 +1,5 @@
 sum:
-	gcc -m32 sum.c
+	gcc -m32 sum.c -fno-pic
 	./a.out
 	objdump -d ./a.out > /tmp/sum.asm
 

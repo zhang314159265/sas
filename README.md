@@ -7,7 +7,7 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 
 # Scratch
 - use jit runner to try various programs written in C/asm
-  - next sum.c
+  - next: mersenne number
 - read volume 2 of intel SDM
   - roughly done for chapter 2. content for IA-32e mode and AVX are skipped
 	- check mov instruction.
