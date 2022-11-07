@@ -43,3 +43,10 @@ static inline void str_free(struct str* pstr) {
 	free(pstr->buf);
 	memset(pstr, 0x1F, sizeof(*pstr));
 }
+
+// Relocate the dword relative displacement at off to point to symbol.
+static inline void str_relocate_off_to_sym(struct str* pstr, int off, int symbol) {
+  uint32_t next_instr_addr = (uint32_t) (pstr->buf + off + 4);
+  *(uint32_t*) (pstr->buf + off)
+    = symbol - next_instr_addr;
+}

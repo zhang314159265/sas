@@ -1,6 +1,10 @@
+test_jit_factoring:
+	gcc -m32 -I. tests/test_jit_factoring.c
+	./a.out | grep -q "Factoring 2047 into: 23 89"
+
 test_jit_sum:
 	gcc -m32 -I. tests/test_jit_sum.c
-	./a.out
+	./a.out | grep -q "sum is 5050"
 
 test_jit_access_array:
 	gcc -m32 -I. tests/test_jit_access_array.c

@@ -1,3 +1,8 @@
+factoring:
+	gcc -m32 factoring.c -fno-pic
+	./a.out
+	objdump -d ./a.out > /tmp/factoring.asm
+
 sum:
 	gcc -m32 sum.c -fno-pic
 	./a.out
