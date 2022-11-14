@@ -4,13 +4,20 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 
 # Reference
 - [Linux System Call Table - ChromeOS Doc](https://chromium.googlesource.com/chromiumos/docs/+/HEAD/constants/syscalls.md)
+- [A good reference of various relocation entris from Oracle](https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcv/index.html)
 
 # Scratch
+- TODO: run all tests rather than only the one specified by the default target
+- TODO: gradually use mnemonic for opcode in text code
+- TODO: be able to do relocation for circular calls with cycle size > 1
+  - f -> f -> f .. has cycle size 1
+  - f -> g -> f .. has cycle size 2
+
 - use jit runner to try various programs written in C/asm
-  - next: factoring
-  - next: 8queue
+  - next: nqueen
+  - TODO: support label in text code and use that in nqueen...
   - next: prime sieve
-  - next: mersenne number
+  - next: mersenne number (find 11..)
   - next: fibo matrix
   - next: find a floating point example
 - read volume 2 of intel SDM

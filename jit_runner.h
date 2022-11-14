@@ -10,10 +10,8 @@
 #include "search.h"
 #include "reloc.h"
 
-void jit_run(struct str* bin_code) {
+void jit_make_exec(struct str* bin_code) {
 	void *fnaddr = bin_code->buf;
-	printf("fnaddr %p\n", fnaddr);
-	printf("len %d\n", bin_code->len);
 
 	// mprotect requries the address to be aligned on page boundary
 	uint32_t mem_addr = (uint32_t) fnaddr;
@@ -27,7 +25,11 @@ void jit_run(struct str* bin_code) {
 		perror("mprotect fail");
 		assert(false && "mprotect fail");
 	}
-	int retval = ((int(*)()) fnaddr)();
+}
+
+void jit_run(struct str* bin_code) {
+  jit_make_exec(bin_code);
+	int retval = ((int(*)()) bin_code->buf)();
 	printf("jit_run ret %d\n", retval);
 }
 
@@ -140,7 +142,10 @@ struct as_rel_s parse_text_code_line(const char* line, int linelen, struct str* 
   return rel_entry;
 }
 
-struct str parse_text_code(const char *text_code, const char* argnames[], int argvals[]) {
+/*
+ * Each text code represents a function.
+ */
+struct str parse_text_code(const char* func_name, const char *text_code, const char* argnames[], int argvals[]) {
 	const char *cur = text_code;
 	const char *next;
 	int capacity = 0;
@@ -161,6 +166,15 @@ struct str parse_text_code(const char *text_code, const char* argnames[], int ar
 		cur = next;
 	}
 
+  const char *debug_func_name = (func_name ? func_name : "<FUNC>");
+  printf("=== FUNC %s ===\n", debug_func_name);
+	printf("  addr %p\n", bin_code.buf);
+	printf("  len %d\n", bin_code.len);
+
+  if (func_name) {
+    sym_register(func_name, bin_code.buf);
+  }
+
   // resolve the collected relocation entries.
   // Must be 2 pass because of potential realloc
   for (int i = 0; i < rel_list.len; ++i) {
@@ -168,4 +182,10 @@ struct str parse_text_code(const char *text_code, const char* argnames[], int ar
     reloc_apply(pent, &bin_code);
   }
 	return bin_code;
+}
+
+struct str parse_text_code_simple(const char* func_name, const char *text_code) {
+  const char* argnames[] = { NULL};
+  int argvals[] = {};
+  return parse_text_code(func_name, text_code, argnames, argvals);
 }

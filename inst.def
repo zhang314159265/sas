@@ -3,17 +3,28 @@ Name, OPCode, comment
 add, 0x01, "Add r32 to r/m32"
 add, 0x83/0, "Add sign extended imm8 to r/m32"
 call, 0xe8, "Call relative using 32 bit displacement"
-cmp, 0x83/7, "Compare imm8 with r/m32"
+cmovns, 0x0f49, "Conditional move r/m32 to r32 if NS"
+cmp, 0x39, "Compare 'r/m32 - r32'"
+cmp, 0x3b, "Compare 'r32 - r/m32'"
+cmp, 0x83/7, "Compare 'r/m32 - imm8'"
 div, 0xf7/6, "unsigned div by r/m32"
 int, 0xcd, "imm8 represents the interrupt vector"
+je, 0x74, "relative jump using 8 bit displacement, if cc=E"
+jl, 0x7c, "relative jump using 8 bit displacement, if cc=L"
+jl, 0x0f8c, "relative jump using 32 bit displacement, if cc=L"
 jle, 0x7e, "relative jump using 8 bit displacement if cc=LE"
+jmp, 0xe9, "relative jump using 32 bit displacement"
 jmp, 0xeb, "relative jump using 8 bit displacement"
 jne, 0x75, "relative jump using 8 bit displacement if cc=NE"
 leave, 0xc9
-mov, 0x89, "move r32 to r/m32" # store
-mov, 0x8b, "move r/m32 to r32" # load
-mov, 0xc7/0, "Move imm32 to r/m32"
+mov, 0x89, "store: move r32 to r/m32"
+mov, 0x8b, "load: move r/m32 to r32"
+mov, 0xa1, "mov dword from memory to eax. memory is specified by 32 bit displacement"
+mov, 0xa3, "mov eax to dword in memory. memory is specified by 32 bit displacement"
 mov, 0xb8+, "move imm32 to r32"
+mov, 0xc7/0, "Move imm32 to r/m32"
+
+neg, 0xf7/3, "Negate r/m32"
 
 pop, 0x58+, "Pop top of stack into r32"
 popa, 0x61, "Pop all"
@@ -24,5 +35,7 @@ push, 0xff/6, "Push r/m32 to the stack"
 pusha, 0x60
 
 ret, 0xc3
+sub, 0x29, "r/m32 - r32"
+sub, 0x2b, "r32 - r/m32"
 sub, 0x83/5, "Substract sign-extended imm8 from r/m32"
 test, 0x85, "AND r32 with r/m32"

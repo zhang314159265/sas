@@ -19,7 +19,7 @@ int hex2int(char ch) {
 	}
 }
 
-char* cstr_dup(const char* src, int len) {
+char* lenstr_dup(const char* src, int len) {
   char* dst = malloc(len + 1);
   assert(dst);
   memcpy(dst, src, len);

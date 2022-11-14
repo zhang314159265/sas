@@ -1,4 +1,8 @@
-all: test_jit_factoring
+all: test_jit_nqueen
+
+test_jit_nqueen:
+	gcc -m32 -I. tests/test_jit_nqueen.c
+	./a.out | grep -q "8 queen solution: 92"
 
 test_jit_factoring:
 	gcc -m32 -I. tests/test_jit_factoring.c

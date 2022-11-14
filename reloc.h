@@ -1,7 +1,7 @@
 #pragma once
 
 #include "str.h"
-#include <dlfcn.h>
+#include "sym.h"
 
 // define a struct for relocation rather than reusing Elf32_Rel to make it easier
 // to handle symbol name.
@@ -132,22 +132,26 @@ void reloc_apply(struct as_rel_s* pent, struct str* pbin_code) {
   uint32_t *patch_loc = (uint32_t*) (pbin_code->buf + pent->offset);
   // don't care about *patch_loc since we have addend field in as_rel_s
 
-  // NOTE: dlsym requires the string to be termiated by '\0'. Thus we need
-  // do a copy
-  char *name = cstr_dup(pent->sym, pent->symlen);
-  /*
-   * It's weird that RTLD_DEFAULT is not defined in my environment.
-   * Since glibc define RTLD_DEFAULT as nullptr, I'll just pass in nullptr.
-   *  void *symaddr = dlsym(RTLD_DEFAULT, name);
-   */
-  void *symaddr = dlsym(NULL, name);
+  char *name = lenstr_dup(pent->sym, pent->symlen);
+  void *symaddr = sym_lookup(name);
   if (!symaddr) {
-    printf("Symbol not found %s\n", name);
-    assert(false);
+    /*
+     * It's weird that RTLD_DEFAULT is not defined in my environment.
+     * Since glibc define RTLD_DEFAULT as nullptr, I'll just pass in nullptr.
+     *  void *symaddr = dlsym(RTLD_DEFAULT, name);
+     */
+    symaddr = dlsym(NULL, name);
   }
   free(name);
+  if (!symaddr) {
+    printf("Symbol not found %.*s\n", pent->symlen, pent->sym);
+    assert(false);
+  }
 
   switch (pent->rel_type) {
+  case R_386_32:
+    *patch_loc = (uint32_t) symaddr + pent->addend;
+    break;
   case R_386_PC32:
     *patch_loc = symaddr - (void*) patch_loc + pent->addend;
     break;
