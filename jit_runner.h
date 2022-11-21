@@ -6,7 +6,9 @@
 #include <sys/mman.h>
 #include <stdint.h>
 #include "str.h"
+#include "vec.h"
 #include "search.h"
+#include "reloc.h"
 
 void jit_run(struct str* bin_code) {
 	void *fnaddr = bin_code->buf;
@@ -35,9 +37,16 @@ const char *gettoken(const char *cur, const char *end) {
 	if (cur == end || isspace(*cur)) {
 		return NULL;
 	}
-	while (cur != end && !isspace(*cur)) {
+
+  // handle '<' specially so: '<REL R_386_PC32 printf -4>' will be treated
+  // as a single token
+  int special_tok = (*cur == '<');
+	while (cur != end && ((special_tok && *cur != '>') || (!special_tok && !isspace(*cur)))) {
 		++cur;
 	}
+  if (cur != end && *cur == '>') {
+    ++cur; // go past the trailing '>'
+  }
 	return cur;
 }
 
@@ -53,18 +62,23 @@ const char *gettoken(const char *cur, const char *end) {
  * The format is define this way so
  * - it's easy to use the output of objdump directly.
  * - we can patch the code with runtime symbols. This simulates relocation in some sense.
+ *
+ * Return the potential reloctation entry. Assume each line contains as most 1 relocation entry.
+ * as_rel_s == -1 indicates an non-existing relocation entry.
  */
-void parse_text_code_line(const char* line, int linelen, struct str* bin_code, const char *argnames[], int argvals[]) {
+struct as_rel_s parse_text_code_line(const char* line, int linelen, struct str* bin_code, const char *argnames[], int argvals[]) {
 	#if 0
 	printf("%.*s\n", linelen, line);
 	#endif
+  struct as_rel_s rel_entry;
+  rel_entry.offset = -1;
 	const char *curptr = line;
 	const char *end = line + linelen;
 	while (curptr != end && isspace(*curptr)) {
 		++curptr;
 	}
 	if (*curptr == '#') {
-		return; // comment line
+		return rel_entry; // comment line
 	}
 
 	const char *first_colon = NULL;
@@ -83,7 +97,6 @@ void parse_text_code_line(const char* line, int linelen, struct str* bin_code, c
 	}
 
   const char *tokenend;
-	// printf("=========split\n");
 	while (true) {
 		if (curptr != end && *curptr == ' ') {
 			++curptr;
@@ -102,17 +115,29 @@ void parse_text_code_line(const char* line, int linelen, struct str* bin_code, c
 		} else {
 			assert(*curptr == '<');
 			assert(*(tokenend - 1) == '>');
-			int idx = linear_search(argnames, curptr + 1, tokenend - curptr - 2);
-			assert(idx >= 0);
-			int val = argvals[idx];
-			// only support 32 bit values so far and assumes little endian
-			for (int i = 0; i < 4; ++i) {
-				str_append(bin_code, val & 0xff);
-				val >>= 8;
-			}
+      int len = tokenend - curptr;
+      if (!memchr(curptr, ' ', tokenend - curptr)) {
+        // identify as a symbol if no space found
+  			int idx = linear_search(argnames, curptr + 1, tokenend - curptr - 2);
+  			assert(idx >= 0 && "symbol not found");
+  			int val = argvals[idx];
+  			// only support 32 bit values so far and assumes little endian
+  			for (int i = 0; i < 4; ++i) {
+  				str_append(bin_code, val & 0xff);
+  				val >>= 8;
+  			}
+      } else if (len >= 5 && memcmp(curptr, "<REL ", 5) == 0) {
+        rel_entry = rel_parse_str(bin_code->len, curptr + 1, tokenend - 1);
+        // rel_entry_dump(rel_entry);
+        str_nappend(bin_code, 4, 0);
+      } else {
+        printf("unhandled sym: %.*s\n", tokenend - curptr, curptr);
+        assert(false);
+      }
 		}
 		curptr = tokenend;
 	}
+  return rel_entry;
 }
 
 struct str parse_text_code(const char *text_code, const char* argnames[], int argvals[]) {
@@ -120,16 +145,27 @@ struct str parse_text_code(const char *text_code, const char* argnames[], int ar
 	const char *next;
 	int capacity = 0;
 	struct str bin_code = str_create(256);
+  struct vec rel_list = vec_create(sizeof(struct as_rel_s));
 	while (*cur) {
 		next = cur;
 		while (*next && *next != '\n') {
 			++next;
 		}
-		parse_text_code_line(cur, next - cur, &bin_code, argnames, argvals);
+		struct as_rel_s rel_entry = parse_text_code_line(cur, next - cur, &bin_code, argnames, argvals);
+    if (rel_entry.offset >= 0) {
+      vec_append(&rel_list, &rel_entry); 
+    }
 		if (*next == '\n') {
 			++next;
 		}
 		cur = next;
 	}
+
+  // resolve the collected relocation entries.
+  // Must be 2 pass because of potential realloc
+  for (int i = 0; i < rel_list.len; ++i) {
+    struct as_rel_s* pent = vec_get_item(&rel_list, i);
+    reloc_apply(pent, &bin_code);
+  }
 	return bin_code;
 }

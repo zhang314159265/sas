@@ -1,3 +1,5 @@
+all: test_jit_factoring
+
 test_jit_factoring:
 	gcc -m32 -I. tests/test_jit_factoring.c
 	./a.out | grep -q "Factoring 2047 into: 23 89"

@@ -28,6 +28,12 @@ static inline void str_append(struct str* pstr, char ch) {
 	pstr->buf[pstr->len++] = ch;
 }
 
+static inline void str_nappend(struct str* pstr, int n, char ch) {
+  for (int i = 0; i < n; ++i) {
+    str_append(pstr, ch);
+  }
+}
+
 static inline void str_hexdump(struct str* pstr) {
 	printf("str dump:\n");
 	for (int i = 0; i < pstr->len; ++i) {

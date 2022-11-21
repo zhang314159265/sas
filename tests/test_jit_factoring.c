@@ -34,7 +34,8 @@ int main(void) {
 		68 <MAIN_MSG>
 
 		# call printf
-		e8 00 00 00 00
+		# e8 00 00 00 00
+    e8 <REL R_386_PC32 printf -4>
 
 		# add $0x10, %esp
 		83 c4 10
@@ -79,7 +80,8 @@ int main(void) {
 		68 <FACTOR_MSG>
 
 		# call printf
-		e8 00 00 00 00
+		# e8 00 00 00 00
+    e8 <REL R_386_PC32 printf -4>
 
 		# add $0x10, %esp
 		83 c4 10
@@ -115,7 +117,8 @@ int main(void) {
 		6a 0a
 
 		# call putchar
-		e8 00 00 00 00
+		# e8 00 00 00 00
+    e8 <REL R_386_PC32 putchar -4>
 
 		# mov -0x4(%ebp), %ecx
 		8b 4d fc
@@ -130,13 +133,6 @@ int main(void) {
 		c3
 	)";
 	struct str bin_code = parse_text_code(text_code, argnames, argvals);
-	int reloc_print_main_msg = 26;
-	str_relocate_off_to_sym(&bin_code, reloc_print_main_msg, (int) printf);
-	int reloc_print_factor_msg = reloc_print_main_msg + 51;
-	str_relocate_off_to_sym(&bin_code, reloc_print_factor_msg, (int) printf);
-	int reloc_putchar = reloc_print_factor_msg + 39;
-	str_relocate_off_to_sym(&bin_code, reloc_putchar, (int) putchar);
-
 	jit_run(&bin_code);
 	str_free(&bin_code);
 	printf("bye\n");

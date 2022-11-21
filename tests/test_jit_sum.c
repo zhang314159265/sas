@@ -51,7 +51,8 @@ int main(void) {
 		68 <STR_ADDR>
 
 		# call printf, patch later
-		e8 00 00 00 00
+		# e8 00 00 00 00
+    e8 <REL R_386_PC32 printf -4>
 
 		# leave
 		c9
@@ -60,8 +61,6 @@ int main(void) {
     c3
   )";
 	struct str bin_code = parse_text_code(text_code, argnames, argvals);
-	// fill in printf address offset
-	*(uint32_t*) (bin_code.buf + 51) = (int) printf - ((int) bin_code.buf + 55);
 	jit_run(&bin_code);
 	str_free(&bin_code);
 
