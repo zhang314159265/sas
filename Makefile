@@ -1,4 +1,6 @@
-all: test_jit_nqueen
+test_jit_primesieve:
+	gcc -m32 -I. tests/test_jit_primesieve.c
+	./a.out | grep -q "Found 25 primes less than 100"
 
 test_jit_nqueen:
 	gcc -m32 -I. tests/test_jit_nqueen.c

@@ -7,19 +7,23 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - [A good reference of various relocation entris from Oracle](https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcv/index.html)
 
 # Scratch
+- principle: one should feel very smooth to translate a assembly instruction to machine code by only referring to inst.def.
+
 - TODO: run all tests rather than only the one specified by the default target
 - TODO: gradually use mnemonic for opcode in text code
 - TODO: be able to do relocation for circular calls with cycle size > 1
   - f -> f -> f .. has cycle size 1
   - f -> g -> f .. has cycle size 2
+- TODO: support label in text code and use that in nqueen... // TODO HERE
 
 - use jit runner to try various programs written in C/asm
-  - next: nqueen
-  - TODO: support label in text code and use that in nqueen...
-  - next: prime sieve
+  - next: prime sieve // TODO HERE 
+    - // be able to quickly translate assembly to text code using inst.def
+
   - next: mersenne number (find 11..)
-  - next: fibo matrix
+  - next: fib matrix
   - next: find a floating point example
+  - Try other single-file C programs
 - read volume 2 of intel SDM
   - roughly done for chapter 2. content for IA-32e mode and AVX are skipped
 	- check mov instruction.

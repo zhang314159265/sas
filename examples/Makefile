@@ -1,11 +1,13 @@
-CFLAGS="-mpreferred-stack-boundary=2"
+CFLAGS=-mpreferred-stack-boundary=2 -fno-pic -fno-stack-protector
 
-nqueen:
-	gcc -m32 nqueen.c -fno-pic -c -o /tmp/nqueen.o $(CFLAGS) -DNDEBUG
-	objdump -dr /tmp/nqueen.o > /tmp/nqueen.asm
-	gcc -m32 /tmp/nqueen.o
+all: primesieve
+
+primesieve nqueen:
+	gcc -m32 $@.c -c -o /tmp/$@.o $(CFLAGS) -DNDEBUG
+	objdump -dr /tmp/$@.o > /tmp/$@.asm
+	gcc -m32 /tmp/$@.o
 	./a.out
-	objdump -d ./a.out > /tmp/nqueen.fullasm
+	objdump -d ./a.out > /tmp/$@.fullasm
 
 factoring:
 	gcc -m32 factoring.c -fno-pic
