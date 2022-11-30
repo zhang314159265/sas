@@ -1,8 +1,8 @@
 CFLAGS=-mpreferred-stack-boundary=2 -fno-pic -fno-stack-protector
 
-all: primesieve
+all: mersenne_number
 
-primesieve nqueen:
+mersenne_number primesieve nqueen:
 	gcc -m32 $@.c -c -o /tmp/$@.o $(CFLAGS) -DNDEBUG
 	objdump -dr /tmp/$@.o > /tmp/$@.asm
 	gcc -m32 /tmp/$@.o

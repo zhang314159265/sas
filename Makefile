@@ -1,3 +1,7 @@
+test_jit_mersenne_number:
+	gcc -m32 -I. tests/$@.c
+	./a.out | grep -q "The first non prime mersene number with prime power is: 2\*\*11 - 1"
+
 test_jit_primesieve:
 	gcc -m32 -I. tests/test_jit_primesieve.c
 	./a.out | grep -q "Found 25 primes less than 100"

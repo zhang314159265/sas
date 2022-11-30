@@ -23,7 +23,21 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
   - next: mersenne number (find 11..)
   - next: fib matrix
   - next: find a floating point example
+    - (1 + 1/n)^n , harmonic number
+    - (1 / 1! + 1 / 2! +...)
+    - calc sin with taylor series
+    - cos(cos(cos(cos(....)))) -> converge to some number (0.73908..)
+    - calc pi with some interesting formula
   - Try other single-file C programs
+    - find all a/b/c (`<L`) integer trilples for a right triangle 
+    - calc sqrt(x) with binary search / newton iteration
+    - calculate md5sum
+    - generate random number and use that to estimate PI
+    - simple curl (with or without SSL?)
+    - simple http server (with or without SSL)
+    - MAIL client/server
+    - simple ssh client.
+
 - read volume 2 of intel SDM
   - roughly done for chapter 2. content for IA-32e mode and AVX are skipped
 	- check mov instruction.
