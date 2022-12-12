@@ -1,3 +1,7 @@
+test_jit_harmonic_number:
+	gcc -m32 -I. tests/$@.c -lm
+	./a.out | grep -q "PASS"
+
 test_jit_mersenne_number:
 	gcc -m32 -I. tests/$@.c
 	./a.out | grep -q "The first non prime mersene number with prime power is: 2\*\*11 - 1"

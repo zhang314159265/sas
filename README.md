@@ -17,18 +17,9 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - TODO: support label in text code and use that in nqueen... // TODO HERE
 
 - use jit runner to try various programs written in C/asm
-  - next: prime sieve // TODO HERE 
-    - // be able to quickly translate assembly to text code using inst.def
-
-  - next: mersenne number (find 11..)
-  - next: fib matrix
-  - next: find a floating point example
-    - (1 + 1/n)^n , harmonic number
-    - (1 / 1! + 1 / 2! +...)
-    - calc sin with taylor series
-    - cos(cos(cos(cos(....)))) -> converge to some number (0.73908..)
-    - calc pi with some interesting formula
+  - harmonic number // TODO HERE
   - Try other single-file C programs
+    - fib matrix
     - find all a/b/c (`<L`) integer trilples for a right triangle 
     - calc sqrt(x) with binary search / newton iteration
     - calculate md5sum
@@ -37,6 +28,13 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
     - simple http server (with or without SSL)
     - MAIL client/server
     - simple ssh client.
+    - calc24
+    - floating point examples
+      - calc pi with some interesting formula
+      - (1 + 1/n)^n
+      - (1 / 1! + 1 / 2! +...)
+      - calc sin with taylor series
+      - cos(cos(cos(cos(....)))) -> converge to some number (0.73908..)
 
 - read volume 2 of intel SDM
   - roughly done for chapter 2. content for IA-32e mode and AVX are skipped

@@ -1,7 +1,8 @@
-Name, OPCode, comment
+Name (as shown in Intel doc), OPCode (big endian), Description
 ============
 add, 0x01, "Add r32 to r/m32"
 add, 0x83/0, "Add sign extended imm8 to r/m32"
+and, 0x83/4, "And imm8 and r/m32 (sign-extended)"
 call, 0xe8, "Call relative using 32 bit displacement"
 cdq, 0x99, "Sign extend dword in eax to quadword in edx:eax."
 cltd, 0x99, "alias to cdq"
@@ -12,7 +13,10 @@ cmp, 0x83/7, "Compare 'r/m32 - imm8'"
 div, 0xf7/6, "unsigned div by r/m32"
 idiv, 0xf7/7, "signed div by r/m32"
 imul, 0x0faf, "Signed multiply. Two-operand form. Multiply r32 (dst) and r/m32, store the truncated result back to r32"
+int3, 0xcc, "trigger a breakpoint"
 int, 0xcd, "imm8 represents the interrupt vector"
+ja, 0x77, "relative jump using 8 bit displacement, if cc=A"
+jbe, 0x76, "relative jump using 8 bit displacement, if cc=BE"
 je, 0x74, "relative jump using 8 bit displacement, if cc=E"
 jl, 0x7c, "relative jump using 8 bit displacement, if cc=L"
 jl, 0x0f8c, "relative jump using 32 bit displacement, if cc=L"
@@ -48,3 +52,18 @@ sub, 0x2b, "r32 - r/m32"
 sub, 0x83/5, "Substract sign-extended imm8 from r/m32"
 test, 0x84, "AND r8 with r/m8 (dst)"
 test, 0x85, "AND r32 with r/m32 (dst)"
+
+
+=========== below are for floating pointer instructions
+faddp, 0xdec0+, "Add ST(0) to ST(i) then pop"
+fcomip, 0xdff0+, "Set eflags base on 'ST(0) - ST(i)'. Then pop register stack"
+# fdivp, 0xdef8+, "ST(i) = ST(i) / ST(0), then pop"
+fdivrp, 0xdef0+, "ST(i) = ST(0) / ST(i), then pop. The mnemonic show in asm may be fdivp"
+fild, 0xdb/0, "Push integer from m32int onto the FPU register stack"
+fld, 0xdd/0, "Push m64fp onto the FPU register stack"
+fld1, 0xd9e8, "Push +1.0 onto the FPU register stack"
+fldz, 0xd9ee, "Push +0.0 onto the FPU register stack"
+fstp, 0xdd/3, "Copy ST(0) to m64fp and pop register stack"
+fstp, 0xddd8+, "Copy ST(0) to ST(i) and then pop"
+fxch, 0xd9c8+, "Exchange ST(0) and ST(i)"
+
