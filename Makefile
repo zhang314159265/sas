@@ -1,3 +1,7 @@
+test_jit_calc24:
+	gcc -m32 -I. tests/$@.c -lm -lreadline
+	cat examples/calc24_input | ./a.out
+
 test_jit_harmonic_number:
 	gcc -m32 -I. tests/$@.c -lm
 	./a.out | grep -q "PASS"

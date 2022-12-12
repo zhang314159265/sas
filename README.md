@@ -4,7 +4,7 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 
 # Reference
 - [Linux System Call Table - ChromeOS Doc](https://chromium.googlesource.com/chromiumos/docs/+/HEAD/constants/syscalls.md)
-- [A good reference of various relocation entris from Oracle](https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcv/index.html)
+- [A good reference of various relocation entries from Oracle](https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcv/index.html)
 
 # Scratch
 - principle: one should feel very smooth to translate a assembly instruction to machine code by only referring to inst.def.
@@ -17,7 +17,6 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - TODO: support label in text code and use that in nqueen... // TODO HERE
 
 - use jit runner to try various programs written in C/asm
-  - harmonic number // TODO HERE
   - Try other single-file C programs
     - fib matrix
     - find all a/b/c (`<L`) integer trilples for a right triangle 
@@ -28,7 +27,6 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
     - simple http server (with or without SSL)
     - MAIL client/server
     - simple ssh client.
-    - calc24
     - floating point examples
       - calc pi with some interesting formula
       - (1 + 1/n)^n

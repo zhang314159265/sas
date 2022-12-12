@@ -1,8 +1,8 @@
-CFLAGS=-mpreferred-stack-boundary=2 -fno-pic -fno-stack-protector
-LDFLAGS=-lm
+CFLAGS=-mpreferred-stack-boundary=2 -fno-pic -fno-stack-protector -fno-inline-small-functions -DNDEBUG
+LDFLAGS=-lm -lreadline
 
-harmonic_number mersenne_number primesieve nqueen:
-	gcc -m32 $@.c -c -o /tmp/$@.o $(CFLAGS) -DNDEBUG
+calc24 harmonic_number mersenne_number primesieve nqueen:
+	gcc -m32 $@.c -c -o /tmp/$@.o $(CFLAGS)
 	objdump -dr /tmp/$@.o > /tmp/$@.asm
 	gcc -m32 /tmp/$@.o $(LDFLAGS)
 	./a.out
