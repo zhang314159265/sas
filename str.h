@@ -15,7 +15,7 @@ static inline struct str str_create(int init_capa) {
 	struct str str;
 	str.capacity = init_capa;
 	str.len = 0;
-	str.buf = malloc(str.capacity);
+	str.buf = (char*) malloc(str.capacity);
 	return str;
 }
 
@@ -23,7 +23,7 @@ static inline void str_append(struct str* pstr, char ch) {
 	assert(pstr->len <= pstr->capacity);
 	if (pstr->len == pstr->capacity) {
 		pstr->capacity <<= 1;
-		pstr->buf = realloc(pstr->buf, pstr->capacity);
+		pstr->buf = (char*) realloc(pstr->buf, pstr->capacity);
 	}
 	pstr->buf[pstr->len++] = ch;
 }
@@ -46,8 +46,10 @@ static inline void str_hexdump(struct str* pstr) {
 }
 
 static inline void str_free(struct str* pstr) {
-	free(pstr->buf);
-	memset(pstr, 0x1F, sizeof(*pstr));
+  if (pstr->buf) {
+	  free(pstr->buf);
+    pstr->buf = NULL;
+  }
 }
 
 // Relocate the dword relative displacement at off to point to symbol.
@@ -55,4 +57,12 @@ static inline void str_relocate_off_to_sym(struct str* pstr, int off, int symbol
   uint32_t next_instr_addr = (uint32_t) (pstr->buf + off + 4);
   *(uint32_t*) (pstr->buf + off)
     = symbol - next_instr_addr;
+}
+
+static struct str str_move(struct str* pstr) {
+  struct str ret = *pstr;
+  pstr->capacity = 0;
+  pstr->len = 0;
+  pstr->buf = NULL;
+  return ret;
 }

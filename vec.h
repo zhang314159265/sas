@@ -29,3 +29,9 @@ static inline void* vec_get_item(struct vec* vec, int idx) {
   assert(idx >= 0 && idx < vec->len);
   return vec->data + idx * vec->itemsize;
 }
+
+static inline void vec_free(struct vec* vec) {
+  assert(vec->data);
+  free(vec->data);
+  vec->data = NULL;
+}

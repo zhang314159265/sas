@@ -9,6 +9,8 @@
 #include "vec.h"
 #include "search.h"
 #include "reloc.h"
+#include "asctx.h"
+#include "util.h"
 
 void jit_make_exec(struct str* bin_code) {
 	void *fnaddr = bin_code->buf;
@@ -65,22 +67,18 @@ const char *gettoken(const char *cur, const char *end) {
  * - it's easy to use the output of objdump directly.
  * - we can patch the code with runtime symbols. This simulates relocation in some sense.
  *
- * Return the potential reloctation entry. Assume each line contains as most 1 relocation entry.
- * as_rel_s == -1 indicates an non-existing relocation entry.
  */
-struct as_rel_s parse_text_code_line(const char* line, int linelen, struct str* bin_code, const char *argnames[], int argvals[]) {
+void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, struct str* bin_code, const char *argnames[], int argvals[]) {
 	#if 0
 	printf("%.*s\n", linelen, line);
 	#endif
-  struct as_rel_s rel_entry;
-  rel_entry.offset = -1;
 	const char *curptr = line;
 	const char *end = line + linelen;
 	while (curptr != end && isspace(*curptr)) {
 		++curptr;
 	}
 	if (*curptr == '#') {
-		return rel_entry; // comment line
+		return; // comment line
 	}
 
 	const char *first_colon = NULL;
@@ -92,6 +90,10 @@ struct as_rel_s parse_text_code_line(const char* line, int linelen, struct str* 
 		}
 	}
 	if (first_colon) {
+    // [curptr, first_colon) defines the label
+    char *label = lenstr_dup(curptr, first_colon - curptr);
+    asctx_define_label(ctx, label, bin_code->len);
+    free(label);
 		curptr = first_colon + 1;
 	}
 	while (curptr != end && isspace(*curptr)) {
@@ -129,7 +131,8 @@ struct as_rel_s parse_text_code_line(const char* line, int linelen, struct str* 
   				val >>= 8;
   			}
       } else if (len >= 5 && memcmp(curptr, "<REL ", 5) == 0) {
-        rel_entry = rel_parse_str(bin_code->len, curptr + 1, tokenend - 1);
+        struct as_rel_s rel_entry = rel_parse_str(bin_code->len, curptr + 1, tokenend - 1);
+        vec_append(&ctx->rel_list, &rel_entry);
         // rel_entry_dump(rel_entry);
         str_nappend(bin_code, 4, 0);
       } else {
@@ -139,27 +142,17 @@ struct as_rel_s parse_text_code_line(const char* line, int linelen, struct str* 
 		}
 		curptr = tokenend;
 	}
-  return rel_entry;
 }
 
-/*
- * Each text code represents a function.
- */
-struct str parse_text_code(const char* func_name, const char *text_code, const char* argnames[], int argvals[]) {
+void _parse_text_code(struct asctx* ctx, const char* func_name, const char* text_code, const char* argnames[], int argvals[]) {
 	const char *cur = text_code;
 	const char *next;
-	int capacity = 0;
-	struct str bin_code = str_create(256);
-  struct vec rel_list = vec_create(sizeof(struct as_rel_s));
 	while (*cur) {
 		next = cur;
 		while (*next && *next != '\n') {
 			++next;
 		}
-		struct as_rel_s rel_entry = parse_text_code_line(cur, next - cur, &bin_code, argnames, argvals);
-    if (rel_entry.offset >= 0) {
-      vec_append(&rel_list, &rel_entry); 
-    }
+    parse_text_code_line(ctx, cur, next - cur, &ctx->bin_code, argnames, argvals);
 		if (*next == '\n') {
 			++next;
 		}
@@ -168,19 +161,30 @@ struct str parse_text_code(const char* func_name, const char *text_code, const c
 
   const char *debug_func_name = (func_name ? func_name : "<FUNC>");
   printf("=== FUNC %s ===\n", debug_func_name);
-	printf("  addr %p\n", bin_code.buf);
-	printf("  len %d\n", bin_code.len);
+	printf("  addr %p\n", ctx->bin_code.buf);
+	printf("  len %d\n", ctx->bin_code.len);
 
   if (func_name) {
-    sym_register(func_name, bin_code.buf);
+    sym_register(func_name, ctx->bin_code.buf);
   }
 
   // resolve the collected relocation entries.
   // Must be 2 pass because of potential realloc
-  for (int i = 0; i < rel_list.len; ++i) {
-    struct as_rel_s* pent = vec_get_item(&rel_list, i);
-    reloc_apply(pent, &bin_code);
+  for (int i = 0; i < ctx->rel_list.len; ++i) {
+    struct as_rel_s* pent = (struct as_rel_s*) vec_get_item(&ctx->rel_list, i);
+    reloc_apply(pent, &ctx->bin_code);
   }
+}
+
+/*
+ * Each text code represents a function.
+ */
+struct str parse_text_code(const char* func_name, const char *text_code, const char* argnames[], int argvals[]) {
+  struct asctx ctx = asctx_create();
+  _parse_text_code(&ctx, func_name, text_code, argnames, argvals);
+
+  struct str bin_code = str_move(&ctx.bin_code);
+  asctx_free(&ctx);
 	return bin_code;
 }
 

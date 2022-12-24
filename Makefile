@@ -1,3 +1,7 @@
+first: test_jit_sum
+
+CFLAGS = -g -m32 -Wno-pointer-arith
+
 test_jit_calc24:
 	gcc -m32 -I. tests/$@.c -lm -lreadline
 	cat examples/calc24_input | ./a.out
@@ -23,7 +27,7 @@ test_jit_factoring:
 	./a.out | grep -q "Factoring 2047 into: 23 89"
 
 test_jit_sum:
-	gcc -m32 -I. tests/test_jit_sum.c
+	gcc -m32 -I. tests/test_jit_sum.c $(CFLAGS)
 	./a.out | grep -q "sum is 5050"
 
 test_jit_access_array:
@@ -42,4 +46,12 @@ test_jit_only_ret:
 	gcc -m32 -I. tests/test_jit_only_ret.c
 	./a.out | grep -q "jit_run ret 3"
 
-test: test_jit_access_array test_jit_hello_libc test_jit_hello_s test_jit_only_ret test_jit_sum
+test_dict:
+	g++ -I. tests/test_dict.cpp -lgtest -lgtest_main
+	./a.out
+
+# The tests need to be build with -m32, but I don't have 32 bit gtest installed.
+# Thus this tests is not using gtest.
+test_label:
+	gcc -I. tests/test_label.c $(CFLAGS)
+	./a.out

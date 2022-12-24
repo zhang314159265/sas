@@ -15,7 +15,7 @@ int main(void) {
     83 c4 04
     c3 
   )";
-	struct str bin_code = parse_text_code(text_code, argnames, argvals);
+	struct str bin_code = parse_text_code(NULL, text_code, argnames, argvals);
   // fill in printf address offset
   *(uint32_t*) (bin_code.buf + 6) = (int) printf - ((int) bin_code.buf + 10);
 	jit_run(&bin_code);

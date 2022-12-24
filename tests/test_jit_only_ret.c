@@ -7,7 +7,7 @@ int main(void) {
     b8 03 00 00 00 
     c3
   )";
-	struct str bin_code = parse_text_code(text_code, argnames, argvals);
+	struct str bin_code = parse_text_code(NULL, text_code, argnames, argvals);
 	jit_run(&bin_code);
 	str_free(&bin_code);
 

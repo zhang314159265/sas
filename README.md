@@ -7,14 +7,19 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - [A good reference of various relocation entries from Oracle](https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcv/index.html)
 
 # Scratch
+
+- TODO: support label in text code and use that in nqueen... // TODO HERE
+  - handle label for jmp instruction <===
+  - handle label for jcc instruction
+
+- TODO: support call instruction
+
 - principle: one should feel very smooth to translate a assembly instruction to machine code by only referring to inst.def.
 
-- TODO: run all tests rather than only the one specified by the default target
 - TODO: gradually use mnemonic for opcode in text code
 - TODO: be able to do relocation for circular calls with cycle size > 1
   - f -> f -> f .. has cycle size 1
   - f -> g -> f .. has cycle size 2
-- TODO: support label in text code and use that in nqueen... // TODO HERE
 
 - use jit runner to try various programs written in C/asm
   - Try other single-file C programs
