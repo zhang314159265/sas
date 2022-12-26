@@ -146,6 +146,13 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         assert(tokenend == end);
         handle_jmp(ctx, label, cc_opcode_off);
         free(label);
+      } else if (strcmp("call", opstr) == 0) {
+        curptr = skip_spaces(tokenend, end); 
+        tokenend = gettoken(curptr, end);
+        assert(tokenend == end);
+        char *func_name = lenstrdup(curptr, tokenend - curptr);
+        handle_call(ctx, func_name);
+        free(func_name);
       } else {
   		  printf("token is %s\n", opstr);
         assert(false && "Unsupported token");

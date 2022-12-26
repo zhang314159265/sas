@@ -90,3 +90,18 @@ static int is_jcc(const char* opstr) {
     return opoff;
   }
 }
+
+static void handle_call(struct asctx* ctx, const char* func_name) {
+  str_append(&ctx->bin_code, 0xe8);
+  int offset = ctx->bin_code.len;
+  str_append_i32(&ctx->bin_code, 0);
+
+  struct as_rel_s item;
+  item.own_buf = 1;
+  item.offset = offset;
+  item.rel_type = R_386_PC32;
+  item.sym = strdup(func_name);
+  item.symlen = strlen(func_name);;
+  item.addend = -4;
+  vec_append(&ctx->rel_list, &item);
+}

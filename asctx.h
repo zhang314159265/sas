@@ -42,6 +42,12 @@ static void asctx_resolve_label_patch(struct asctx* ctx) {
 }
 
 static void asctx_free(struct asctx* ctx) {
+  for (int i = 0; i < ctx->rel_list.len; ++i) {
+    struct as_rel_s *item = vec_get_item(&ctx->rel_list, i);
+    if (item->own_buf) {
+      free((void*) item->sym);
+    }
+  }
   vec_free(&ctx->rel_list);
   dict_free(&ctx->label2off);
   str_free(&ctx->bin_code);

@@ -54,7 +54,8 @@ l_loop_cond:
 
   # call printf, patch later
   # e8 00 00 00 00
-  e8 <REL R_386_PC32 printf -4>
+  # e8 <REL R_386_PC32 printf -4>
+  call printf
 
   # leave
   c9

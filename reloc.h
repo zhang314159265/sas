@@ -12,6 +12,7 @@ struct as_rel_s {
   const char* sym;
   int symlen;
   int32_t addend;
+  int own_buf; // whether the buffer for sym is owned by this entry
 };
 
 enum rel_parse_str_stage {
@@ -73,6 +74,7 @@ int32_t rel_parse_addend(const char* text, int len) {
  */
 struct as_rel_s rel_parse_str(uint32_t offset, const char* text_begin, const char* text_end) {
   struct as_rel_s rel_entry;
+  rel_entry.own_buf = 0;
   rel_entry.offset = offset;
 
   const char* text_ptr = text_begin;
