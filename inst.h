@@ -2,6 +2,7 @@
 
 #include "asctx.h"
 #include "dict.h"
+#include "operand.h"
 
 struct dict cc2opcodeoff;
 
@@ -104,4 +105,24 @@ static void handle_call(struct asctx* ctx, const char* func_name) {
   item.symlen = strlen(func_name);;
   item.addend = -4;
   vec_append(&ctx->rel_list, &item);
+}
+
+static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2) {
+  if (is_grp32(&o1) && is_grp32(&o2)) {
+    // mov gpr32_0, gpr32_1
+    // there are 2 alternative ways to encode this instruction.
+    // We can encode this as a load (opcode 0x8b) or store (opcode 0x89).
+    //
+    // sas uniformly encode this as a store.
+    // When interpreted as a store, gpr32_0 will be encoded in reg bits in ModR/M byte,
+    // while gpr32_1 will be encoded in r/m bits in ModR/M byte.
+    str_append(&ctx->bin_code, 0x89);
+    // ModR/M byte:
+    // 11 gpr32_0 (3bit) gpr32_1 (3bit)
+    uint8_t mod = 0xc0 | (o1.regidx << 3) | (o2.regidx);
+    str_append(&ctx->bin_code, mod);
+  } else {
+    printf("handle_mov %s %s\n", o1.repr, o2.repr);
+    assert(false && "handle mov");
+  }
 }

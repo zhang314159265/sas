@@ -7,9 +7,7 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - [A good reference of various relocation entries from Oracle](https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcv/index.html)
 
 # Scratch
-- TODO: support call instruction
-
-- TODO: support move instruction
+- TODO: support load/store style move instructions
 
 - principle: one should feel very smooth to translate a assembly instruction to machine code by only referring to inst.def.
 

@@ -153,6 +153,19 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         char *func_name = lenstrdup(curptr, tokenend - curptr);
         handle_call(ctx, func_name);
         free(func_name);
+      } else if (strcmp("mov", opstr) == 0) {
+        curptr = tokenend;
+        struct operand o1, o2;
+        int status;
+        status = parse_operand(&curptr, end, &o1);
+        assert(status == 0);
+        status = parse_operand(&curptr, end, &o2);
+        assert(status == 0);
+        assert(curptr == end);
+        handle_mov(ctx, o1, o2);
+        operand_free(&o1);
+        operand_free(&o2);
+        break;
       } else {
   		  printf("token is %s\n", opstr);
         assert(false && "Unsupported token");

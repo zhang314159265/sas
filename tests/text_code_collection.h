@@ -4,9 +4,10 @@
 const char *sum_text_code = R"(
   # push %ebp
   55
-  # mov %esp, %ebp . 2 alternative ways to encode
+  # . 2 alternative ways to encode
+  mov %esp, %ebp
   # 89 e5
-  8b ec
+  # 8b ec
 
   # push %ecx
   51
