@@ -7,11 +7,9 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - [A good reference of various relocation entries from Oracle](https://docs.oracle.com/cd/E19120-01/open.solaris/819-0690/6n33n7fcv/index.html)
 
 # Scratch
-- TODO: handle jmp instruction manually for now
-
 - TODO: support label in text code and use that in nqueen... // TODO HERE
-  - handle label for jmp instruction <===
   - handle label for jcc instruction
+
 
 - TODO: support call instruction
 - TODO: support move instruction

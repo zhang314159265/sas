@@ -40,7 +40,8 @@ l_loop_cond:
   83 7d f4 64
 
   # jle to loop body
-  7e f0
+  # 7e f0
+  jle l_loop_body
 
   # sub $0x8, %esp
   83 ec 08

@@ -136,16 +136,21 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         printf("unhandled sym: %.*s\n", tokenend - curptr, curptr);
         assert(false);
       }
-		} else if (strncmp("jmp", curptr, tokenend - curptr) == 0) {
-      curptr = skip_spaces(tokenend, end);
-      tokenend = gettoken(curptr, end);
-      char *label = lenstrdup(curptr, tokenend - curptr);
-      assert(tokenend == end);
-      handle_jmp(ctx, label);
-      free(label);
-    } else {
-		  printf("token is %.*s\n", tokenend - curptr, curptr);
-      assert(false && "Unsupported token");
+		} else {
+      char* opstr = lenstrdup(curptr, tokenend - curptr);
+      int cc_opcode_off = -1;
+      if (strcmp("jmp", opstr) == 0 || (cc_opcode_off = is_jcc(opstr)) >= 0) {
+        curptr = skip_spaces(tokenend, end);
+        tokenend = gettoken(curptr, end);
+        char *label = lenstrdup(curptr, tokenend - curptr);
+        assert(tokenend == end);
+        handle_jmp(ctx, label, cc_opcode_off);
+        free(label);
+      } else {
+  		  printf("token is %s\n", opstr);
+        assert(false && "Unsupported token");
+      }
+      free(opstr);
     }
 		curptr = tokenend;
 	}
