@@ -12,7 +12,7 @@ _start:
 
   # exit
   movl $1, %eax
-  movl $0, %ebx
+  movl $-0x8, %ebx
   int $0x80
 
 msg:

@@ -56,3 +56,7 @@ test_dict:
 test_label:
 	gcc -I. tests/test_label.c $(CFLAGS)
 	./a.out
+
+test_operand:
+	gcc -I. tests/test_operand.c $(CFLAGS)
+	./a.out

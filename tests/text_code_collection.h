@@ -4,8 +4,8 @@
 const char *sum_text_code = R"(
   # push %ebp
   55
-  # . 2 alternative ways to encode
   mov %esp, %ebp
+  # 2 alternative ways to encode:
   # 89 e5
   # 8b ec
 
@@ -61,6 +61,7 @@ l_loop_cond:
   # leave
   c9
 
-  b8 05 00 00 00 
+  # b8 05 00 00 00 
+  mov $5, %eax
   c3
 )";

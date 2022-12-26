@@ -108,7 +108,7 @@ static void handle_call(struct asctx* ctx, const char* func_name) {
 }
 
 static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2) {
-  if (is_grp32(&o1) && is_grp32(&o2)) {
+  if (is_gpr32(&o1) && is_gpr32(&o2)) {
     // mov gpr32_0, gpr32_1
     // there are 2 alternative ways to encode this instruction.
     // We can encode this as a load (opcode 0x8b) or store (opcode 0x89).
@@ -121,6 +121,11 @@ static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2) 
     // 11 gpr32_0 (3bit) gpr32_1 (3bit)
     uint8_t mod = 0xc0 | (o1.regidx << 3) | (o2.regidx);
     str_append(&ctx->bin_code, mod);
+  } else if (is_imm(&o1) && is_gpr32(&o2)) {
+    // move imm to gpr32
+    // always encode imm as imm32 for simplicity
+    str_append(&ctx->bin_code, 0xb8 + o2.regidx);
+    str_append_i32(&ctx->bin_code, o1.imm);
   } else {
     printf("handle_mov %s %s\n", o1.repr, o2.repr);
     assert(false && "handle mov");

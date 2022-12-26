@@ -1,5 +1,10 @@
 #pragma once
 
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include "util.h"
+
 // TODO: key can not be 'const char*' and value can only be int so far.
 // generalize if needed
 

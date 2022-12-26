@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdio.h>
 #include "dict.h"
 
 struct dict twoch2reg16;
@@ -44,6 +45,11 @@ struct operand {
   // {
   int regidx;
   // }
+
+  // IMM specific fields
+  // {
+  int32_t imm;
+  // }
 };
 
 /*
@@ -62,19 +68,80 @@ static int parse_gpr32(const char* s) {
   }
 }
 
-static int is_grp32(struct operand* op) {
+static int is_gpr32(struct operand* op) {
   return op->type == REG && op->nbit == 32;
+}
+
+static int is_imm(struct operand* op) {
+  return op->type == IMM;
+}
+
+// return 0 if the input string is an immediate number (prefix by '$')
+// return a negative value otherwise.
+//
+// TODO: may need generalize this function to handle immediate numbers
+// not prefixed by '$'
+static int parse_imm(const char*s, int32_t* pimm) {
+  if (!*s || s[0] != '$') {
+    return -1;
+  }
+  ++s;
+
+  // only handle decimal or hexadecimal. (i.e. 012 will be treatd as 12 in decimal rather than 10)
+  int sign = 1; // default
+  if (*s == '+' || *s == '-') {
+    if (*s == '-') {
+      sign = -1;
+    }
+    ++s;
+  }
+  int base = 10;
+  if (strlen(s) > 2 && s[0] == '0' && tolower(s[1]) == 'x') {
+    base = 16;
+    s += 2;
+  }
+  if (!*s) {
+    return -1;
+  }
+  // TODO: handle 32bit overflow
+  int significant = 0;
+  char ch;
+  int dig;
+  for (; (ch = *s); ++s) {
+    ch = tolower(ch);
+    if (ch >= '0' && ch <= '9') {
+      dig = (ch - '0');
+    } else if (base == 16 && ch >= 'a' && ch <= 'f') {
+      dig = ch - 'a' + 10;
+    } else {
+      return -1;
+    }
+    significant = significant * base + dig;
+  }
+  *pimm = sign * significant;
+  return 0;
 }
 
 static void operand_init(struct operand* op) {
   const char* repr = op->repr;
   int regidx = -1;
+  int32_t imm;
+  int status;
   assert(repr);
 
   if ((regidx = parse_gpr32(repr)) >= 0) {
     op->type = REG;
     op->regidx = regidx;
     op->nbit = 32;
+  } else if ((status = parse_imm(repr, &imm)) == 0) {
+    op->type = IMM;
+    op->imm = imm;
+
+    if (imm >= -128 && imm <= 127) {
+      op->nbit = 8;
+    } else {
+      op->nbit = 32;
+    }
   } else {
     printf("not yet suport initializing operand with '%s'\n", op->repr);
     assert(false && "operand_init ni");
