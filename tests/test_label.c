@@ -12,8 +12,8 @@ int main(void) {
 
   struct dict* label2off = &ctx.label2off;
   assert(label2off->size == 2);
-  assert(dict_lookup_nomiss(label2off, "l_loop_body") == 23);
-  assert(dict_lookup_nomiss(label2off, "l_loop_cond") == 33);
+  assert(dict_lookup_nomiss(label2off, "l_loop_body") == 26);
+  assert(dict_lookup_nomiss(label2off, "l_loop_cond") == 36);
   asctx_free(&ctx);
   return 0;
 }

@@ -11,6 +11,8 @@
 #include "reloc.h"
 #include "asctx.h"
 #include "util.h"
+#include "inst.h"
+#include "tokenizer.h"
 
 void jit_make_exec(struct str* bin_code) {
 	void *fnaddr = bin_code->buf;
@@ -68,15 +70,13 @@ const char *gettoken(const char *cur, const char *end) {
  * - we can patch the code with runtime symbols. This simulates relocation in some sense.
  *
  */
-void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, struct str* bin_code, const char *argnames[], int argvals[]) {
+void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, const char *argnames[], int argvals[]) {
 	#if 0
 	printf("%.*s\n", linelen, line);
 	#endif
 	const char *curptr = line;
 	const char *end = line + linelen;
-	while (curptr != end && isspace(*curptr)) {
-		++curptr;
-	}
+  curptr = skip_spaces(curptr, end);
 	if (*curptr == '#') {
 		return; // comment line
 	}
@@ -91,8 +91,8 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, stru
 	}
 	if (first_colon) {
     // [curptr, first_colon) defines the label
-    char *label = lenstr_dup(curptr, first_colon - curptr);
-    asctx_define_label(ctx, label, bin_code->len);
+    char *label = lenstrdup(curptr, first_colon - curptr);
+    asctx_define_label(ctx, label, ctx->bin_code.len);
     free(label);
 		curptr = first_colon + 1;
 	}
@@ -102,9 +102,7 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, stru
 
   const char *tokenend;
 	while (true) {
-		if (curptr != end && *curptr == ' ') {
-			++curptr;
-		}
+    curptr = skip_spaces(curptr, end);
 		if (!(tokenend = gettoken(curptr, end))) {
 			break;
 		}
@@ -115,9 +113,8 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, stru
 			int b = hex2int(*(curptr + 1));
 			assert(a >= 0 && b >= 0);
 			char newch = (a << 4) | b;
-			str_append(bin_code, newch);
-		} else {
-			assert(*curptr == '<');
+			str_append(&ctx->bin_code, newch);
+		} else if (*curptr == '<') {
 			assert(*(tokenend - 1) == '>');
       int len = tokenend - curptr;
       if (!memchr(curptr, ' ', tokenend - curptr)) {
@@ -127,19 +124,29 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, stru
   			int val = argvals[idx];
   			// only support 32 bit values so far and assumes little endian
   			for (int i = 0; i < 4; ++i) {
-  				str_append(bin_code, val & 0xff);
+  				str_append(&ctx->bin_code, val & 0xff);
   				val >>= 8;
   			}
       } else if (len >= 5 && memcmp(curptr, "<REL ", 5) == 0) {
-        struct as_rel_s rel_entry = rel_parse_str(bin_code->len, curptr + 1, tokenend - 1);
+        struct as_rel_s rel_entry = rel_parse_str(ctx->bin_code.len, curptr + 1, tokenend - 1);
         vec_append(&ctx->rel_list, &rel_entry);
         // rel_entry_dump(rel_entry);
-        str_nappend(bin_code, 4, 0);
+        str_nappend(&ctx->bin_code, 4, 0);
       } else {
         printf("unhandled sym: %.*s\n", tokenend - curptr, curptr);
         assert(false);
       }
-		}
+		} else if (strncmp("jmp", curptr, tokenend - curptr) == 0) {
+      curptr = skip_spaces(tokenend, end);
+      tokenend = gettoken(curptr, end);
+      char *label = lenstrdup(curptr, tokenend - curptr);
+      assert(tokenend == end);
+      handle_jmp(ctx, label);
+      free(label);
+    } else {
+		  printf("token is %.*s\n", tokenend - curptr, curptr);
+      assert(false && "Unsupported token");
+    }
 		curptr = tokenend;
 	}
 }
@@ -152,7 +159,7 @@ void _parse_text_code(struct asctx* ctx, const char* func_name, const char* text
 		while (*next && *next != '\n') {
 			++next;
 		}
-    parse_text_code_line(ctx, cur, next - cur, &ctx->bin_code, argnames, argvals);
+    parse_text_code_line(ctx, cur, next - cur, argnames, argvals);
 		if (*next == '\n') {
 			++next;
 		}
@@ -174,6 +181,8 @@ void _parse_text_code(struct asctx* ctx, const char* func_name, const char* text
     struct as_rel_s* pent = (struct as_rel_s*) vec_get_item(&ctx->rel_list, i);
     reloc_apply(pent, &ctx->bin_code);
   }
+
+  asctx_resolve_label_patch(ctx);
 }
 
 /*

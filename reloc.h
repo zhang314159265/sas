@@ -132,7 +132,7 @@ void reloc_apply(struct as_rel_s* pent, struct str* pbin_code) {
   uint32_t *patch_loc = (uint32_t*) (pbin_code->buf + pent->offset);
   // don't care about *patch_loc since we have addend field in as_rel_s
 
-  char *name = lenstr_dup(pent->sym, pent->symlen);
+  char *name = lenstrdup(pent->sym, pent->symlen);
   void *symaddr = sym_lookup(name);
   if (!symaddr) {
     /*

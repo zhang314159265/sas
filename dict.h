@@ -93,6 +93,10 @@ int dict_lookup_nomiss(struct dict* dict, const char *key) {
   return entry->val;
 }
 
+struct dict_entry* dict_lookup(struct dict* dict, const char *key) {
+  return _dict_find(dict->entries, dict->capacity, key);
+}
+
 void dict_free(struct dict* dict) {
   for (int i = 0; i < dict->capacity; ++i) {
     if (dict->entries[i].key) {

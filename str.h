@@ -28,6 +28,14 @@ static inline void str_append(struct str* pstr, char ch) {
 	pstr->buf[pstr->len++] = ch;
 }
 
+static void str_append_i32(struct str* pstr, uint32_t val) {
+  // append a 4 byte little endian value
+  str_append(pstr, val & 0xff);
+  str_append(pstr, (val >> 8) & 0xff);
+  str_append(pstr, (val >> 16) & 0xff);
+  str_append(pstr, (val >> 24) & 0xff);
+}
+
 static inline void str_nappend(struct str* pstr, int n, char ch) {
   for (int i = 0; i < n; ++i) {
     str_append(pstr, ch);

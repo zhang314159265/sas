@@ -21,7 +21,9 @@ const char *sum_text_code = R"(
   c7 45 f4 01 00 00 00
 
   # jmp to cond check
-  eb 0a
+  # Instead of using short jmp: eb 0a
+  # sas uses near jmp for simplicity: e9 xx yy zz ww
+  jmp l_loop_cond
 
 l_loop_body:
   # mov -0xc(%ebp), %eax
