@@ -225,11 +225,16 @@ static int parse_mem(const char* s, struct operand* op) {
   if (!*cur) {
     return 0;
   }
+
+  /*
+   * Only handles 2 cases ATM:
+   * 1. (%gpr)
+   * 2. (%grp1, %gpr2, scale)
+   *  Need handle more complex case like a SIB missing base regiser but having index register.
+   */
   assert(*cur == '(');
   ++cur;
 
-  // TODO: asssume only a base register right now. Need handle more complex
-  // case like SIB or missing base regiser but having index register.
   const char *base_reg_start = cur;
   while (*cur != ',' && *cur != ')') {
     ++cur;
@@ -240,11 +245,51 @@ static int parse_mem(const char* s, struct operand* op) {
   if (op->base_regidx < 0) {
     return -1;
   }
-  if (*cur != ')') {
+
+  if (*cur == ')') {
+    ++cur;
+    assert(*cur == '\0');
+    return 0;
+  }
+  assert(*cur == ',');
+
+  // TODO: Assume both base, index ans scale exists
+  ++cur;
+  cur = skip_spaces(cur, end);
+  const char *index_reg_start = cur;
+  while (*cur != ',' && *cur != ')') {
+    ++cur;
+  }
+  char *index_reg_str = lenstrdup(index_reg_start, cur - index_reg_start);
+  op->index_regidx = parse_gpr32(index_reg_str);
+  free(index_reg_str);
+  if (op->index_regidx < 0 || *cur != ',') {
     return -1;
   }
   ++cur;
-  assert(*cur == '\0');
+
+  // parse the scale
+  cur = skip_spaces(cur, end);
+  switch (*cur) {
+  case '1':
+    op->log2scale = 0;
+    break;
+  case '2':
+    op->log2scale = 1;
+    break;
+  case '4':
+    op->log2scale = 2;
+    break;
+  case '8':
+    op->log2scale = 3;
+    break;
+  default:
+    return -1;
+  }
+  ++cur;
+  if (*cur != ')' || cur[1] != '\0') {
+    return -1;
+  }
   return 0;
 }
 

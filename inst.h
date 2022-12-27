@@ -10,6 +10,7 @@ struct dict valid_instr_stem;
 enum {
   OPC_mov,
   OPC_push,
+  OPC_pop,
   OPC_sub,
   OPC_add,
   OPC_cmp,
@@ -22,6 +23,7 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   valid_instr_stem = dict_create();
   dict_put(&valid_instr_stem, "mov", OPC_mov);
   dict_put(&valid_instr_stem, "push", OPC_push);
+  dict_put(&valid_instr_stem, "pop", OPC_pop);
   dict_put(&valid_instr_stem, "sub", OPC_sub);
   dict_put(&valid_instr_stem, "add", OPC_add);
   dict_put(&valid_instr_stem, "cmp", OPC_cmp);
@@ -133,6 +135,12 @@ static void handle_call(struct asctx* ctx, const char* func_name) {
   asctx_add_relocation(ctx, func_name, offset, R_386_PC32);
 }
 
+enum DISP_STATE {
+  DISP_NONE,
+  DISP_8bits,
+  DISP_32bits,
+};
+
 /*
  * rm_opd should either be a reigsrer or an memory operand
  */
@@ -147,29 +155,53 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   }
 
   struct operand mem_opd = *rm_opd;
-
-  // TODO: only handle simple case of disp(%base) right now
   assert(mem_opd.base_regidx >= 0);
-  assert(mem_opd.index_regidx < 0);
-  assert(mem_opd.log2scale < 0);
+  int disp_state;
+  if (mem_opd.disp == 0) {
+    disp_state = DISP_NONE;
+  } else if (is_int8(mem_opd.disp)) {
+    disp_state = DISP_8bits;
+  } else {
+    disp_state = DISP_32bits;
+  }
+
+  bool has_sib = (mem_opd.index_regidx >= 0 || mem_opd.log2scale >= 0);
+  if (has_sib) {
+    assert(mem_opd.index_regidx >= 0 && mem_opd.log2scale >= 0);
+  }
+
+  int rmbits = has_sib ? 4 : mem_opd.base_regidx;
+  if (!has_sib) {
+    assert(mem_opd.base_regidx != 4);
+    if (disp_state == DISP_NONE) {
+      assert(mem_opd.base_regidx != 5);
+    }
+  }
 
   if (mem_opd.disp == 0) {
     // mod 00
-    assert(mem_opd.base_regidx != 4 && mem_opd.base_regidx != 5);
-    str_append(&ctx->bin_code, 0x00 | (reg_opext << 3) | mem_opd.base_regidx);
+    str_append(&ctx->bin_code, 0x00 | (reg_opext << 3) | rmbits);
   } else if (is_int8(mem_opd.disp)) {
     // mod 01
-    // ModRM: 01 reg_opd.regidx mem_opd.base_regidx
-    assert(mem_opd.base_regidx != 4); // TODO: handle SIB case
-    str_append(&ctx->bin_code, 0x40 | (reg_opext << 3) | mem_opd.base_regidx);
+    str_append(&ctx->bin_code, 0x40 | (reg_opext << 3) | rmbits);
+  } else {
+    // mod 10
+    str_append(&ctx->bin_code, 0x80 | (reg_opext << 3) | rmbits);
+  }
 
+  if (has_sib) {
+    // log2scale -- index_reg -- base_reg
+    assert(mem_opd.index_regidx != 4);
+    assert(mem_opd.base_regidx != 5);
+    str_append(&ctx->bin_code, (mem_opd.log2scale << 6) | (mem_opd.index_regidx << 3) | mem_opd.base_regidx);
+  }
+
+  // displacement
+  if (mem_opd.disp == 0) {
+  } else if (is_int8(mem_opd.disp)) {
     // emit the disp8
     str_append(&ctx->bin_code, (int8_t) mem_opd.disp);
   } else {
-    // mod 10
-    assert(mem_opd.base_regidx != 4); // TODO: handle SIB case
-    str_append(&ctx->bin_code, 0x80 | (reg_opext << 3) | mem_opd.base_regidx);
-
     // emit the disp32
     str_append_i32(&ctx->bin_code, mem_opd.disp);
   }
@@ -264,6 +296,14 @@ static void handle_push(struct asctx* ctx, struct operand* opd, char sizesuf) {
   }
 }
 
+static void handle_pop(struct asctx* ctx, struct operand* opd, char sizesuf) {
+  if (is_gpr32(opd)) {
+    str_append(&ctx->bin_code, 0x58 + opd->regidx);
+  } else {
+    assert(false && "handle_pop");
+  }
+}
+
 static void handle_int(struct asctx* ctx, struct operand* opd, char sizesuf) {
   // the immediate value for int instruction is special since it's interpreted
   // as an unsigend 8 bit integer. E.g. $0x80 is interpreted as 128 rather than
@@ -313,6 +353,9 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
   switch (opc) {
     case OPC_push:
       handle_push(ctx, o1, sizesuf);
+      break;
+    case OPC_pop:
+      handle_pop(ctx, o1, sizesuf);
       break;
     case OPC_mov:
       handle_mov(ctx, o1, o2, sizesuf);

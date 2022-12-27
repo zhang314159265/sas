@@ -1,4 +1,4 @@
-first: test_jit_hello_libc
+first: test_jit_access_array
 
 CFLAGS = -g -m32 -Wno-pointer-arith
 
@@ -28,8 +28,7 @@ test_jit_factoring:
 
 test_jit_sum:
 	gcc -m32 -I. tests/test_jit_sum.c $(CFLAGS)
-	# ./a.out | grep -q "sum is 5050"
-	./a.out
+	./a.out | grep -q "sum is 5050"
 
 test_jit_access_array:
 	gcc -m32 -I. tests/test_jit_access_array.c
