@@ -86,6 +86,22 @@ __attribute__((constructor)) static void init_twoch2reg() {
 }
 
 /*
+ * Return [0, 7] if the input reprends a 8 bit general purpose register;
+ * return -1 otherwise
+ */
+static int parse_gpr8(const char* s) {
+  if (strlen(s) != 3 || s[0] != '%') {
+    return -1;
+  }
+  struct dict_entry* entry = dict_lookup(&twoch2reg8, s + 1);
+  if (!entry->key) {
+    return -1;
+  } else {
+    return entry->val;
+  }
+}
+
+/*
  * Return [0, 7] if the input reprends a 32 bit general purpose register;
  * return -1 otherwise
  */
@@ -99,6 +115,10 @@ static int parse_gpr32(const char* s) {
   } else {
     return entry->val;
   }
+}
+
+static int is_gpr8(struct operand* op) {
+  return op->type == REG && op->nbit == 8;
 }
 
 static int is_gpr32(struct operand* op) {
@@ -119,6 +139,10 @@ static int is_imm8(struct operand* op) {
 
 static int is_mem(struct operand* op) {
   return op->type == MEM;
+}
+
+static bool is_rm8(struct operand* op) {
+  return is_gpr8(op) || is_mem(op);
 }
 
 static bool is_rm32(struct operand* op) {
@@ -313,7 +337,11 @@ static void operand_init(struct operand* op) {
   int status;
   assert(repr);
 
-  if ((regidx = parse_gpr32(repr)) >= 0) {
+  if ((regidx = parse_gpr8(repr)) >= 0) {
+    op->type = REG;
+    op->regidx = regidx;
+    op->nbit = 8;
+  } else if ((regidx = parse_gpr32(repr)) >= 0) {
     op->type = REG;
     op->regidx = regidx;
     op->nbit = 32;

@@ -22,6 +22,13 @@ enum {
   OPC_div,
   OPC_test,
   OPC_neg,
+  OPC_lea,
+
+  // have separate entries for movzbl, movzwl so we don't need
+  // handle two character size bytes elsewhere.
+  OPC_movzbl,
+
+  OPC_imul,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -38,6 +45,9 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "div", OPC_div);
   dict_put(&valid_instr_stem, "test", OPC_test);
   dict_put(&valid_instr_stem, "neg", OPC_neg);
+  dict_put(&valid_instr_stem, "lea", OPC_lea);
+  dict_put(&valid_instr_stem, "movzbl", OPC_movzbl);
+  dict_put(&valid_instr_stem, "imul", OPC_imul);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -337,6 +347,11 @@ static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2
     str_append(&ctx->bin_code, 0xc7);
     emit_modrm_sib_disp(ctx, 0, o2); // emit modrm, sib, displacement
     str_append_i32(&ctx->bin_code, o1->imm);
+  } else if (is_imm(o1) && is_mem(o2) && sizesuf == 'b') {
+    // mov imm to r/m8
+    emit_opcode(ctx, 0xc6);
+    emit_modrm_sib_disp(ctx, 0, o2);
+    str_append(&ctx->bin_code, o1->imm);
   } else {
     printf("handle_mov %s %s\n", o1->repr, o2->repr);
     assert(false && "handle mov");
@@ -430,6 +445,9 @@ static void handle_test(struct asctx* ctx, struct operand *o1, struct operand *o
   if (is_gpr32(o1) && is_rm32(o2)) {
     emit_opcode(ctx, 0x85);
     emit_modrm_sib_disp(ctx, o1->regidx, o2);
+  } else if (is_gpr8(o1) && is_rm8(o2)) {
+    emit_opcode(ctx, 0x84);
+    emit_modrm_sib_disp(ctx, o1->regidx, o2);
   } else {
     assert(false && "handle_test");
   }
@@ -441,6 +459,29 @@ static void handle_neg(struct asctx* ctx, struct operand* opd, char sizesuf) {
     emit_modrm_sib_disp(ctx, 3, opd);
   } else {
     assert(false && "handle_neg");
+  }
+}
+
+static void handle_lea(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
+  assert(is_rm32(o1) && is_gpr32(o2));
+  emit_opcode(ctx, 0x8d);
+  emit_modrm_sib_disp(ctx, o2->regidx, o1);
+}
+
+static void handle_movzbl(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
+  assert(is_rm8(o1) && is_gpr32(o2));
+  emit_opcode(ctx, 0x0f);
+  emit_opcode(ctx, 0xb6);
+  emit_modrm_sib_disp(ctx, o2->regidx, o1);
+}
+
+static void handle_imul(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
+  if (is_rm32(o1) && is_gpr32(o2)) {
+    emit_opcode(ctx, 0x0f);
+    emit_opcode(ctx, 0xaf);
+    emit_modrm_sib_disp(ctx, o2->regidx, o1);
+  } else {
+    assert(false && "handle_imul");
   }
 }
 
@@ -482,6 +523,15 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_neg:
       handle_neg(ctx, o1, sizesuf);
+      break;
+    case OPC_lea:
+      handle_lea(ctx, o1, o2, sizesuf);
+      break;
+    case OPC_movzbl:
+      handle_movzbl(ctx, o1, o2, sizesuf);
+      break;
+    case OPC_imul:
+      handle_imul(ctx, o1, o2, sizesuf);
       break;
     default:
       printf("handle instruction %s", opstem);
