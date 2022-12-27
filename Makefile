@@ -1,4 +1,4 @@
-first: test_jit_access_array
+first: test_asmjit_factoring
 
 CFLAGS = -g -m32 -Wno-pointer-arith
 
@@ -21,6 +21,10 @@ test_jit_primesieve:
 test_jit_nqueen:
 	gcc -m32 -I. tests/test_jit_nqueen.c
 	./a.out | grep -q "8 queen solution: 92"
+
+test_asmjit_factoring:
+	gcc -m32 -I. tests/test_asmjit_factoring.c
+	./a.out | grep -q "Factoring 2047 into: 23 89"
 
 test_jit_factoring:
 	gcc -m32 -I. tests/test_jit_factoring.c

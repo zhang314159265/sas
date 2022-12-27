@@ -17,6 +17,8 @@ enum {
   OPC_leave,
   OPC_ret,
   OPC_int,
+  OPC_div,
+  OPC_test,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -30,6 +32,8 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "leave", OPC_leave);
   dict_put(&valid_instr_stem, "ret", OPC_ret);
   dict_put(&valid_instr_stem, "int", OPC_int);
+  dict_put(&valid_instr_stem, "div", OPC_div);
+  dict_put(&valid_instr_stem, "test", OPC_test);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -74,6 +78,16 @@ __attribute__((constructor)) static void init_cc2opcodeoff() {
   dict_put(&cc2opcodeoff, "g", 0xf);
   dict_put(&cc2opcodeoff, "nle", 0xf);
 }
+
+#if 0
+static void handle_TEMP1(struct asctx* ctx, struct operand* opd, char sizesuf) {
+  assert(false && "handle_TEMP1");
+}
+
+static void handle_TEMP2(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
+  assert(false && "handle_TEMP2");
+}
+#endif
 
 /*
  * Handle both jmp and jcc.
@@ -219,6 +233,10 @@ static void emit_imm32(struct asctx* ctx, struct operand* opd) {
   }
 }
 
+static void emit_opcode(struct asctx* ctx, uint8_t opc) {
+  str_append(&ctx->bin_code, opc);
+}
+
 static void handle_loadstore_i32(struct asctx* ctx, struct operand* o1, struct operand* o2) {
   struct operand reg_opd, mem_opd;
   if (is_mem(o1)) {
@@ -304,6 +322,15 @@ static void handle_pop(struct asctx* ctx, struct operand* opd, char sizesuf) {
   }
 }
 
+static void handle_div(struct asctx* ctx, struct operand* opd, char sizesuf) {
+  if (is_rm32_check(opd, sizesuf)) {
+    emit_opcode(ctx, 0xf7);
+    emit_modrm_sib_disp(ctx, 6, opd);
+  } else {
+    assert(false && "handle_div");
+  }
+}
+
 static void handle_int(struct asctx* ctx, struct operand* opd, char sizesuf) {
   // the immediate value for int instruction is special since it's interpreted
   // as an unsigend 8 bit integer. E.g. $0x80 is interpreted as 128 rather than
@@ -348,6 +375,15 @@ static void handle_cmp(struct asctx* ctx, struct operand *o1, struct operand *o2
   }
 }
 
+static void handle_test(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
+  if (is_gpr32(o1) && is_rm32(o2)) {
+    emit_opcode(ctx, 0x85);
+    emit_modrm_sib_disp(ctx, o1->regidx, o2);
+  } else {
+    assert(false && "handle_test");
+  }
+}
+
 static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *o1, struct operand *o2, char sizesuf) {
   int opc = dict_lookup_nomiss(&valid_instr_stem, opstem);
   switch (opc) {
@@ -377,6 +413,12 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_int:
       handle_int(ctx, o1, sizesuf);
+      break;
+    case OPC_div:
+      handle_div(ctx, o1, sizesuf);
+      break;
+    case OPC_test:
+      handle_test(ctx, o1, o2, sizesuf);
       break;
     default:
       printf("handle instruction %s", opstem);

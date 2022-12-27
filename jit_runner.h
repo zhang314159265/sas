@@ -150,6 +150,7 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         curptr = skip_spaces(tokenend, end);
         tokenend = gettoken(curptr, end);
         char *label = lenstrdup(curptr, tokenend - curptr);
+        tokenend = skip_spaces(tokenend, end);
         assert(tokenend == end);
         handle_jmp(ctx, label, cc_opcode_off);
         free(label);
