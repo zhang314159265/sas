@@ -10,7 +10,9 @@ and, 0x83/4, "And imm8 and r/m32 (sign-extended)"
 call, 0xe8, "Call relative using 32 bit displacement"
 cdq, 0x99, "Sign extend dword in eax to quadword in edx:eax."
 cltd, 0x99, "alias to cdq"
-cmovns, 0x0f49, "Conditional move r/m32 to r32 if NS"
+
+cmovo, 0x0f40, "Conditional move r/m32 to r32 if cc=O. Check jcc disp8 for encoding of other comvcc instructions."
+
 cmp, 0x39, "Compare 'r/m32 - r32'"
 cmp, 0x3b, "Compare 'r32 - r/m32'"
 cmp, 0x80/7, "Compare 'r/m8 - imm8'"

@@ -32,6 +32,7 @@ struct operand {
   // MEM specific fields
   // {
   int32_t disp;
+  const char* disp_sym; // symbol for displacement. Used for relocation
   // assume base and index registers to be 32 bit
   int base_regidx; // -1 if not exist
   int index_regidx; // -1 if not exist
@@ -196,6 +197,7 @@ static int parse_mem(const char* s, struct operand* op) {
   // It will be overriden later if this operand is not a memory operand.
   op->type = MEM;
   op->disp = 0;
+  op->disp_sym = NULL;
   op->base_regidx = -1;
   op->index_regidx = -1;
   op->log2scale = -1;
@@ -214,8 +216,14 @@ static int parse_mem(const char* s, struct operand* op) {
       ++cur; 
     }
     char *dispstr = lenstrdup(disp_start, cur - disp_start);
-    status = parse_imm_noprefix(dispstr, &op->disp);
-    free(dispstr);
+    if (isalpha(*dispstr) || *dispstr == '_') {
+      // symbol as displacement
+      op->disp_sym = dispstr;
+      status = 0;
+    } else {
+      status = parse_imm_noprefix(dispstr, &op->disp);
+      free(dispstr);
+    }
     if (status != 0) {
       return -1;
     }
@@ -239,17 +247,21 @@ static int parse_mem(const char* s, struct operand* op) {
   while (*cur != ',' && *cur != ')') {
     ++cur;
   }
-  char *base_reg_str = lenstrdup(base_reg_start, cur - base_reg_start);
-  op->base_regidx = parse_gpr32(base_reg_str);
-  free(base_reg_str);
-  if (op->base_regidx < 0) {
-    return -1;
+  if (cur - base_reg_start > 0) {
+    char *base_reg_str = lenstrdup(base_reg_start, cur - base_reg_start);
+    op->base_regidx = parse_gpr32(base_reg_str);
+    free(base_reg_str);
+    if (op->base_regidx < 0) {
+      return -1;
+    }
   }
 
   if (*cur == ')') {
     ++cur;
+    cur = skip_spaces(cur, end);
     assert(*cur == '\0');
-    return 0;
+    // () is treated as invalid
+    return op->base_regidx >= 0 ? 0 : -1;
   }
   assert(*cur == ',');
 
@@ -332,9 +344,17 @@ static void operand_free(struct operand* op) {
     free((void*) op->repr);
     op->repr = NULL;
   }
-  if (op->type == IMM && op->imm_sym) {
-    free((void*) op->imm_sym);
-    op->imm_sym = NULL;
+  if (op->type == IMM) {
+    if (op->imm_sym) {
+      free((void*) op->imm_sym);
+      op->imm_sym = NULL;
+    }
+  }
+  if (op->type == MEM) {
+    if (op->disp_sym) {
+      free((void*) op->disp_sym);
+      op->disp_sym = NULL;
+    }
   }
 }
 

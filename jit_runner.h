@@ -108,10 +108,8 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
 		}
 		// printf("token is %.*s\n", tokenend - curptr, curptr);
 		assert(tokenend - curptr >= 2);
-		if (tokenend - curptr == 2) {
-			int a = hex2int(*curptr);
-			int b = hex2int(*(curptr + 1));
-			assert(a >= 0 && b >= 0);
+    int a, b;
+		if (tokenend - curptr == 2 && (a = hex2int(*curptr)) >= 0 && (b = hex2int(curptr[1])) >= 0) {
 			char newch = (a << 4) | b;
 			str_append(&ctx->bin_code, newch);
 		} else if (*curptr == '<') {
@@ -146,7 +144,29 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         opstr[tokenend - curptr - 1] = '\0';
       }
 
-      if (strcmp("jmp", opstr) == 0 || (cc_opcode_off = is_jcc(opstr)) >= 0) {
+      if (strncmp("cmov", opstr, 4) == 0 && (cc_opcode_off = is_cc(opstr + 4)) >= 0) {
+        // TODO: avoid dupliate the code with the else case
+        struct operand lhs, rhs;
+        lhs.repr = NULL;
+        lhs.type = NUL;
+        rhs.repr = NULL;
+        rhs.type = NUL;
+
+        curptr = tokenend;
+        int status;
+        if (curptr != end) {
+          status = parse_operand(&curptr, end, &lhs); 
+          assert(status == 0);
+        }
+        if (curptr != end) {
+          status = parse_operand(&curptr, end, &rhs);
+          assert(status == 0);
+        }
+        assert(curptr == end);
+        handle_cmovcc(ctx, cc_opcode_off, &lhs, &rhs, sizesuf);
+        operand_free(&lhs);
+        operand_free(&rhs);
+      } else if (strcmp("jmp", opstr) == 0 || (cc_opcode_off = is_jcc(opstr)) >= 0) {
         curptr = skip_spaces(tokenend, end);
         tokenend = gettoken(curptr, end);
         char *label = lenstrdup(curptr, tokenend - curptr);

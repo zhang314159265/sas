@@ -37,6 +37,14 @@ void test_parse_mem() {
   assert(opd.base_regidx == 0);
   assert(opd.index_regidx = 1);
   assert(opd.log2scale = 2);
+
+  status = parse_mem("0x0(, %eax, 4)", &opd);
+  assert(status == 0);
+  assert(opd.type == MEM);
+  assert(opd.disp == 0);
+  assert(opd.base_regidx < 0);
+  assert(opd.index_regidx == 0);
+  assert(opd.log2scale = 2);
 }
 
 int main(void) {

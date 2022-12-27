@@ -1,4 +1,4 @@
-first: test_asmjit_factoring
+first: test_asmjit_nqueen
 
 CFLAGS = -g -m32 -Wno-pointer-arith
 
@@ -17,6 +17,10 @@ test_jit_mersenne_number:
 test_jit_primesieve:
 	gcc -m32 -I. tests/test_jit_primesieve.c
 	./a.out | grep -q "Found 25 primes less than 100"
+
+test_asmjit_nqueen:
+	gcc -m32 -I. tests/test_asmjit_nqueen.c
+	./a.out | grep -q "8 queen solution: 92"
 
 test_jit_nqueen:
 	gcc -m32 -I. tests/test_jit_nqueen.c

@@ -5,6 +5,8 @@
 #include "operand.h"
 #include "util.h"
 
+static void emit_opcode(struct asctx* ctx, uint8_t opc);
+static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand* rm_opd);
 struct dict valid_instr_stem;
 
 enum {
@@ -19,6 +21,7 @@ enum {
   OPC_int,
   OPC_div,
   OPC_test,
+  OPC_neg,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -34,6 +37,7 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "int", OPC_int);
   dict_put(&valid_instr_stem, "div", OPC_div);
   dict_put(&valid_instr_stem, "test", OPC_test);
+  dict_put(&valid_instr_stem, "neg", OPC_neg);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -124,21 +128,35 @@ static void handle_jmp(struct asctx* ctx, const char* label, int cc_opcode_off) 
   str_append_i32(&ctx->bin_code, val);
 }
 
+static void handle_cmovcc(struct asctx* ctx, int cc_opcode_off, struct operand* o1, struct operand* o2, int sizesuf) {
+  assert(is_rm32(o1) && is_gpr32(o2));
+  emit_opcode(ctx, 0x0f);
+  emit_opcode(ctx, 0x40 + cc_opcode_off);
+  emit_modrm_sib_disp(ctx, o2->regidx, o1);
+}
+
+/*
+ * Return -1 if not a cc;
+ * Return cc opcode offset if it's a cc. cc opcode offset resides in [0, 0xF]
+ */
+static int is_cc(const char* s) {
+  struct dict_entry* entry = dict_lookup(&cc2opcodeoff, s);
+  if (entry->key) {
+    return entry->val;
+  } else {
+    return -1;
+  }
+}
+
 /*
  * Return -1 if not a jcc op;
  * Return cc opcode offset if it's a jcc op. cc opcode offset resides in [0, 0xF]
  */
 static int is_jcc(const char* opstr) {
-  int opoff = -1;
   if (strlen(opstr) < 2 || opstr[0] != 'j') {
-    return opoff;
+    return -1;
   }
-  struct dict_entry* entry = dict_lookup(&cc2opcodeoff, opstr + 1);
-  if (entry->key) {
-    return entry->val;
-  } else {
-    return opoff;
-  }
+  return is_cc(opstr + 1);
 }
 
 static void handle_call(struct asctx* ctx, const char* func_name) {
@@ -147,6 +165,15 @@ static void handle_call(struct asctx* ctx, const char* func_name) {
   str_append_i32(&ctx->bin_code, 0);
 
   asctx_add_relocation(ctx, func_name, offset, R_386_PC32);
+}
+
+// emit disp as 32bit number and handle relocation if needed
+static void emit_disp32(struct asctx* ctx, struct operand* opd) {
+  assert(opd->type == MEM);
+  if (opd->disp_sym) {
+    asctx_add_relocation(ctx, opd->disp_sym, ctx->bin_code.len, R_386_32);
+  }
+  str_append_i32(&ctx->bin_code, opd->disp);
 }
 
 enum DISP_STATE {
@@ -169,7 +196,6 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   }
 
   struct operand mem_opd = *rm_opd;
-  assert(mem_opd.base_regidx >= 0);
   int disp_state;
   if (mem_opd.disp == 0) {
     disp_state = DISP_NONE;
@@ -180,6 +206,14 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   }
 
   bool has_sib = (mem_opd.index_regidx >= 0 || mem_opd.log2scale >= 0);
+  bool has_base = mem_opd.base_regidx >= 0;
+  if (!has_base && !has_sib) {
+    // only displacement
+    str_append(&ctx->bin_code, 0x00 | (reg_opext << 3) | 5);
+    emit_disp32(ctx, &mem_opd);
+    return;
+  }
+
   if (has_sib) {
     assert(mem_opd.index_regidx >= 0 && mem_opd.log2scale >= 0);
   }
@@ -192,7 +226,16 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
     }
   }
 
-  if (mem_opd.disp == 0) {
+  // some validation
+  if (disp_state == DISP_NONE) {
+    assert(mem_opd.base_regidx != 5); // %ebp slot is special in this case
+  }
+
+  if (has_sib) {
+    assert(mem_opd.index_regidx != 4); // %esp slot is special in this case
+  }
+
+  if (mem_opd.disp == 0 || mem_opd.base_regidx < 0) {
     // mod 00
     str_append(&ctx->bin_code, 0x00 | (reg_opext << 3) | rmbits);
   } else if (is_int8(mem_opd.disp)) {
@@ -204,20 +247,21 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   }
 
   if (has_sib) {
+    int base_regidx = mem_opd.base_regidx >= 0 ? mem_opd.base_regidx : 5;
     // log2scale -- index_reg -- base_reg
     assert(mem_opd.index_regidx != 4);
     assert(mem_opd.base_regidx != 5);
-    str_append(&ctx->bin_code, (mem_opd.log2scale << 6) | (mem_opd.index_regidx << 3) | mem_opd.base_regidx);
+    str_append(&ctx->bin_code, (mem_opd.log2scale << 6) | (mem_opd.index_regidx << 3) | base_regidx);
   }
 
   // displacement
-  if (mem_opd.disp == 0) {
-  } else if (is_int8(mem_opd.disp)) {
+  if (mem_opd.disp == 0 && has_base) {
+  } else if (is_int8(mem_opd.disp) && has_base) {
     // emit the disp8
     str_append(&ctx->bin_code, (int8_t) mem_opd.disp);
   } else {
     // emit the disp32
-    str_append_i32(&ctx->bin_code, mem_opd.disp);
+    emit_disp32(ctx, &mem_opd);
   }
 }
 
@@ -343,7 +387,10 @@ static void handle_int(struct asctx* ctx, struct operand* opd, char sizesuf) {
 }
 
 static void handle_sub(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
-  if (is_imm8(o1) && is_gpr32(o2)) {
+  if (is_rm32(o1) && is_gpr32(o2)) {
+    emit_opcode(ctx, 0x2b);
+    emit_modrm_sib_disp(ctx, o2->regidx, o1);
+  } else if (is_imm8(o1) && is_gpr32(o2)) {
     str_append(&ctx->bin_code, 0x83);
     emit_modrm_sib_disp(ctx, 5, o2);
     str_append(&ctx->bin_code, (int8_t) o1->imm);
@@ -366,7 +413,11 @@ static void handle_add(struct asctx* ctx, struct operand *o1, struct operand *o2
 }
 
 static void handle_cmp(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
-  if (is_imm8(o1) && is_rm32_check(o2, sizesuf)) {
+  if (is_rm32(o1) && is_gpr32(o2)) {
+    // r32 - r/m32
+    emit_opcode(ctx, 0x3b);
+    emit_modrm_sib_disp(ctx, o2->regidx, o1);
+  } else if (is_imm8(o1) && is_rm32_check(o2, sizesuf)) {
     str_append(&ctx->bin_code, 0x83);
     emit_modrm_sib_disp(ctx, 7, o2);
     str_append(&ctx->bin_code, (int8_t) o1->imm);
@@ -381,6 +432,15 @@ static void handle_test(struct asctx* ctx, struct operand *o1, struct operand *o
     emit_modrm_sib_disp(ctx, o1->regidx, o2);
   } else {
     assert(false && "handle_test");
+  }
+}
+
+static void handle_neg(struct asctx* ctx, struct operand* opd, char sizesuf) {
+  if (is_rm32_check(opd, sizesuf)) {
+    emit_opcode(ctx, 0xf7);
+    emit_modrm_sib_disp(ctx, 3, opd);
+  } else {
+    assert(false && "handle_neg");
   }
 }
 
@@ -419,6 +479,9 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_test:
       handle_test(ctx, o1, o2, sizesuf);
+      break;
+    case OPC_neg:
+      handle_neg(ctx, o1, sizesuf);
       break;
     default:
       printf("handle instruction %s", opstem);

@@ -70,71 +70,70 @@ l_loop_body:
 		jne l_cond_else
 		# 75 23
 
-    ######### SPLIT ########
-		# sub $0x8, %esp
-		83 ec 08
+		sub $0x8, %esp
+		# 83 ec 08
 
-		# push -0x10(%ebp)
-		ff 75 f0
+		push -0x10(%ebp)
+		# ff 75 f0
 
 		push $FACTOR_MSG
 		# 68 <FACTOR_MSG>
 
-		# call printf
+		call printf
 		# e8 00 00 00 00
-    e8 <REL R_386_PC32 printf -4>
+    # e8 <REL R_386_PC32 printf -4>
 
-		# add $0x10, %esp
-		83 c4 10
+		add $0x10, %esp
+		# 83 c4 10
 
-		# mov -0x14(%ebp), %eax
-		8b 45 ec
+		mov -0x14(%ebp), %eax
+		# 8b 45 ec
 
-		# mov $0x0, %edx
-		ba 00 00 00 00
+		mov $0x0, %edx
+		# ba 00 00 00 00
 
-		# divl -0x10(%ebp)
-		f7 75 f0
+		divl -0x10(%ebp)
+		# f7 75 f0
 
-		# mov %eax, -0x14(%ebp)
-		89 45 ec
+		mov %eax, -0x14(%ebp)
+		# 89 45 ec
 
 		jmp l_cond_next
 		# eb 04
 
 l_cond_else:
-		# add $0x1, -0x10(%ebp)
-		83 45 f0 01
+		addl $0x1, -0x10(%ebp)
+		# 83 45 f0 01
 
 l_cond_next:
 l_loop_check:
-		# cmpl $0x1, -0x14(%ebp)
-		83 7d ec 01
+		cmpl $0x1, -0x14(%ebp)
+		# 83 7d ec 01
 
 		jne l_loop_body 
 		# 75 c2
 
-		# sub $0xc, %esp
-		83 ec 0c
+		sub $0xc, %esp
+		# 83 ec 0c
 
-		# push $0xa
-		6a 0a
+		push $0xa
+		# 6a 0a
 
-		# call putchar
+		call putchar
 		# e8 00 00 00 00
-    e8 <REL R_386_PC32 putchar -4>
+    # e8 <REL R_386_PC32 putchar -4>
 
-		# mov -0x4(%ebp), %ecx
-		8b 4d fc
+		mov -0x4(%ebp), %ecx
+		# 8b 4d fc
 
-		# leave
-		c9
+		leave
+		# c9
 
-		# mov $5, %eax
-	  b8 07 00 00 00
+		mov $5, %eax
+	  # b8 07 00 00 00
 
-		# ret
-		c3
+		ret
+		# c3
 	)";
 	struct str bin_code = parse_text_code_simple(NULL, text_code);
 	jit_run(&bin_code);
