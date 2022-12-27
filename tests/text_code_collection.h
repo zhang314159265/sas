@@ -38,31 +38,34 @@ l_loop_body:
   ################# SPLIT ################
 
 l_loop_cond:
-  # cmpl $0x64, -0xc(%ebp)
-  83 7d f4 64
+  cmpl $0x64, -0xc(%ebp)
+  # 83 7d f4 64
 
   # jle to loop body
   # 7e f0
   jle l_loop_body
 
-  # sub $0x8, %esp
-  83 ec 08
+  sub $0x8, %esp
+  # 83 ec 08
 
-  # push -0x10(%ebp)
-  ff 75 f0
+  push -0x10(%ebp)
+  # ff 75 f0
 
   # push format string
-  68 <STR_ADDR>
+  # 68 <STR_ADDR>
+  # 68 <REL R_386_32 STR_ADDR 0>
+  push $STR_ADDR
 
   # call printf, patch later
   # e8 00 00 00 00
   # e8 <REL R_386_PC32 printf -4>
   call printf
 
-  # leave
-  c9
+  leave
+  # c9
 
   # b8 05 00 00 00 
   mov $5, %eax
-  c3
+  # c3
+  ret
 )";

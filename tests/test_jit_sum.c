@@ -2,12 +2,9 @@
 #include "text_code_collection.h"
 
 int main(void) {
-	const char* msg = "sum is %d\n";
-	const char* argnames[] = {"STR_ADDR", NULL};
-	int argvals[] = {(uint32_t) msg};
-
   const char* text_code = sum_text_code;
-	struct str bin_code = parse_text_code(NULL, text_code, argnames, argvals);
+  sym_register("STR_ADDR", "sum is %d\n");
+	struct str bin_code = parse_text_code_simple(NULL, text_code);
 	jit_run(&bin_code);
 	str_free(&bin_code);
 

@@ -41,6 +41,21 @@ static void asctx_resolve_label_patch(struct asctx* ctx) {
   }
 }
 
+static void asctx_add_relocation(struct asctx* ctx, const char* symname, int offset, int reloc_type) {
+  struct as_rel_s item;
+  item.own_buf = 1;
+  item.offset = offset;
+  item.rel_type = reloc_type;
+  item.sym = strdup(symname);
+  item.symlen = strlen(symname);;
+  if (reloc_type == R_386_32) {
+    item.addend = 0;
+  } else if (reloc_type == R_386_PC32) {
+    item.addend = -4;
+  }
+  vec_append(&ctx->rel_list, &item);
+}
+
 static void asctx_free(struct asctx* ctx) {
   for (int i = 0; i < ctx->rel_list.len; ++i) {
     struct as_rel_s *item = vec_get_item(&ctx->rel_list, i);

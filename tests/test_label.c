@@ -3,12 +3,11 @@
 #include "text_code_collection.h"
 
 int main(void) {
-	const char* msg = "sum is %d\n";
   const char* text_code = sum_text_code;
+  sym_register("STR_ADDR", "sum is %d\n");
   struct asctx ctx = asctx_create();
-  const char* argnames[] = { "STR_ADDR", NULL};
-  int argvals[] = {(uint32_t) msg};
-  _parse_text_code(&ctx, NULL, text_code, argnames, argvals);
+  const char* argnames[] = { NULL};
+  _parse_text_code(&ctx, NULL, text_code, argnames, NULL);
 
   struct dict* label2off = &ctx.label2off;
   assert(label2off->size == 2);

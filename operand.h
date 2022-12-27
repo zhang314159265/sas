@@ -26,6 +26,7 @@ struct operand {
   // IMM specific fields
   // {
   int32_t imm;
+  const char* imm_sym; // symbol for immediate number. Used for relocation
   // }
 
   // MEM specific fields
@@ -112,7 +113,7 @@ static int is_imm(struct operand* op) {
 }
 
 static int is_imm8(struct operand* op) {
-  return op->type == IMM && is_int8(op->imm);
+  return op->type == IMM && !op->imm_sym && is_int8(op->imm);
 }
 
 static int is_mem(struct operand* op) {
@@ -168,12 +169,23 @@ static int parse_imm_noprefix(const char*s, int32_t* pimm) {
 
 // return 0 if the input string is an immediate number (prefix by '$')
 // return a negative value otherwise.
-static int parse_imm(const char*s, int32_t* pimm) {
+static int parse_imm(const char*s, int32_t* pimm, int* reloc_imm) {
   if (!*s || s[0] != '$') {
     return -1;
   }
   ++s;
-  return parse_imm_noprefix(s, pimm);
+  if (isalpha(*s) || *s == '_') {
+    *reloc_imm = 1; 
+    // TODO: validate that it's a vaild identifier?
+    *pimm = 0;
+
+    // NOTE: we can not add relocation entry here since we don't know
+    // the offset for relocation yet.
+    return 0;
+  } else {
+    *reloc_imm = 0;
+    return parse_imm_noprefix(s, pimm);
+  }
 }
 
 /*
@@ -240,6 +252,7 @@ static void operand_init(struct operand* op) {
   const char* repr = op->repr;
   int regidx = -1;
   int32_t imm;
+  int reloc_imm;
   int status;
   assert(repr);
 
@@ -247,11 +260,16 @@ static void operand_init(struct operand* op) {
     op->type = REG;
     op->regidx = regidx;
     op->nbit = 32;
-  } else if ((status = parse_imm(repr, &imm)) == 0) {
+  } else if ((status = parse_imm(repr, &imm, &reloc_imm)) == 0) {
     op->type = IMM;
     op->imm = imm;
+    op->imm_sym = NULL;
+    if (reloc_imm) {
+      op->imm_sym = strdup(repr + 1); 
+    }
 
-    if (imm >= -128 && imm <= 127) {
+    // relocation implies 32 bits
+    if ((imm >= -128 && imm <= 127) && !reloc_imm) {
       op->nbit = 8;
     } else {
       op->nbit = 32;
@@ -269,6 +287,10 @@ static void operand_free(struct operand* op) {
     free((void*) op->repr);
     op->repr = NULL;
   }
+  if (op->type == IMM && op->imm_sym) {
+    free((void*) op->imm_sym);
+    op->imm_sym = NULL;
+  }
 }
 
 /*
@@ -277,6 +299,7 @@ static void operand_free(struct operand* op) {
  * On success, set popd->repr the whole string representing the operand.
  * Rely on operand_init to futher parse the operand string to understand if
  * it's a register/immediate number/memory operand and what's its size.
+ *
  */
 static int parse_operand(const char** pcur, const char* end, struct operand* popd) {
   const char* cur = *pcur;

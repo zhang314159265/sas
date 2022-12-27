@@ -12,6 +12,9 @@ enum {
   OPC_push,
   OPC_sub,
   OPC_add,
+  OPC_cmp,
+  OPC_leave,
+  OPC_ret,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -20,6 +23,9 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "push", OPC_push);
   dict_put(&valid_instr_stem, "sub", OPC_sub);
   dict_put(&valid_instr_stem, "add", OPC_add);
+  dict_put(&valid_instr_stem, "cmp", OPC_cmp);
+  dict_put(&valid_instr_stem, "leave", OPC_leave);
+  dict_put(&valid_instr_stem, "ret", OPC_ret);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -122,14 +128,7 @@ static void handle_call(struct asctx* ctx, const char* func_name) {
   int offset = ctx->bin_code.len;
   str_append_i32(&ctx->bin_code, 0);
 
-  struct as_rel_s item;
-  item.own_buf = 1;
-  item.offset = offset;
-  item.rel_type = R_386_PC32;
-  item.sym = strdup(func_name);
-  item.symlen = strlen(func_name);;
-  item.addend = -4;
-  vec_append(&ctx->rel_list, &item);
+  asctx_add_relocation(ctx, func_name, offset, R_386_PC32);
 }
 
 /*
@@ -239,6 +238,17 @@ static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2
 static void handle_push(struct asctx* ctx, struct operand* opd, char sizebuf) {
   if (is_gpr32(opd)) {
     str_append(&ctx->bin_code, 0x50 + opd->regidx);
+  } else if (is_mem(opd)) { // imply 32 bit
+    str_append(&ctx->bin_code, 0xff);
+    emit_modrm_sib_disp(ctx, 6, opd);
+  } else if (is_imm(opd)) {
+    // TODO: we could use less bytes for imm8
+    str_append(&ctx->bin_code, 0x68);
+    str_append_i32(&ctx->bin_code, opd->imm);
+    if (opd->imm_sym) {
+      // need relocation
+      asctx_add_relocation(ctx, opd->imm_sym, ctx->bin_code.len - 4, R_386_32);
+    }
   } else {
     assert(false && "handle_push");
   }
@@ -267,6 +277,16 @@ static void handle_add(struct asctx* ctx, struct operand *o1, struct operand *o2
   }
 }
 
+static void handle_cmp(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
+  if (is_imm8(o1) && is_rm32_check(o2, sizesuf)) {
+    str_append(&ctx->bin_code, 0x83);
+    emit_modrm_sib_disp(ctx, 7, o2);
+    str_append(&ctx->bin_code, (int8_t) o1->imm);
+  } else {
+    assert(false && "handle_cmp");
+  }
+}
+
 static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *o1, struct operand *o2, char sizesuf) {
   int opc = dict_lookup_nomiss(&valid_instr_stem, opstem);
   switch (opc) {
@@ -281,6 +301,15 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_add:
       handle_add(ctx, o1, o2, sizesuf);
+      break;
+    case OPC_cmp:
+      handle_cmp(ctx, o1, o2, sizesuf);
+      break;
+    case OPC_leave:
+      str_append(&ctx->bin_code, 0xc9);
+      break;
+    case OPC_ret:
+      str_append(&ctx->bin_code, 0xc3);
       break;
     default:
       printf("handle instruction %s", opstem);

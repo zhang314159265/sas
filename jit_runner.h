@@ -243,6 +243,5 @@ struct str parse_text_code(const char* func_name, const char *text_code, const c
 
 struct str parse_text_code_simple(const char* func_name, const char *text_code) {
   const char* argnames[] = { NULL};
-  int argvals[] = {};
-  return parse_text_code(func_name, text_code, argnames, argvals);
+  return parse_text_code(func_name, text_code, argnames, NULL);
 }
