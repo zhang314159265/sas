@@ -5,9 +5,10 @@
 #include "tokenizer.h"
 
 enum OPERAND_TYPE {
-  REG = 0,
-  IMM = 1,
-  MEM = 2,
+  NUL = 0,
+  REG = 1,
+  IMM = 2,
+  MEM = 3,
 };
 
 // can represent a imm/reg/mem operand
@@ -39,6 +40,20 @@ struct operand {
 
 struct dict twoch2reg16;
 struct dict twoch2reg8;
+
+void operand_debug(struct operand* opd, int indent) {
+  printf("%*s", indent, "");
+  switch (opd->type) {
+  case REG:
+    printf("r%d\n", opd->nbit);
+    break;
+  case NUL:
+    printf("-NO OPERAND-\n");
+    break;
+  default:
+    assert(false && "operand_debug: can not reach here");
+  }
+}
 
 __attribute__((constructor)) static void init_twoch2reg() {
   twoch2reg16 = dict_create();

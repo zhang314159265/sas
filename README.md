@@ -12,6 +12,9 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 
 - principle: one should feel very smooth to translate a assembly instruction to machine code by only referring to inst.def.
 
+- TODO: refactor `jit_runner.c`
+- TODO: think about how to do codegen to handle instructions.
+
 - TODO: gradually use mnemonic for opcode in text code
 - TODO: be able to do relocation for circular calls with cycle size > 1
   - f -> f -> f .. has cycle size 1

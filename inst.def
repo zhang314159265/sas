@@ -1,4 +1,5 @@
 Name (as shown in Intel doc), OPCode (big endian), Description
+(TODO: move content in this file to inst.inc gradually)
 ============
 add, 0x01, "Add r32 to r/m32"
 add, 0x05, "Add imm32 to eax"

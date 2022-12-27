@@ -145,7 +145,7 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         sizesuf = opstr[tokenend - curptr - 1];
         opstr[tokenend - curptr - 1] = '\0';
       }
-      
+
       if (strcmp("jmp", opstr) == 0 || (cc_opcode_off = is_jcc(opstr)) >= 0) {
         curptr = skip_spaces(tokenend, end);
         tokenend = gettoken(curptr, end);
@@ -160,27 +160,36 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         char *func_name = lenstrdup(curptr, tokenend - curptr);
         handle_call(ctx, func_name);
         free(func_name);
-      } else if (strcmp("mov", opstr) == 0) {
-        curptr = tokenend;
-        struct operand o1, o2;
-        int status;
-        status = parse_operand(&curptr, end, &o1);
-        assert(status == 0);
-        status = parse_operand(&curptr, end, &o2);
-        assert(status == 0);
-        assert(curptr == end);
-        handle_mov(ctx, o1, o2, sizesuf);
-        operand_free(&o1);
-        operand_free(&o2);
-        break;
       } else if (strcmp("nop", opstr) == 0) {
         assert(tokenend == end);
         str_append(&ctx->bin_code, 0x90);
+      } else if (is_valid_instr_stem(opstr, strlen(opstr))) {
+        struct operand lhs, rhs;
+        lhs.repr = NULL;
+        lhs.type = NUL;
+        rhs.repr = NULL;
+        rhs.type = NUL;
+
+        curptr = tokenend;
+        int status;
+        if (curptr != end) {
+          status = parse_operand(&curptr, end, &lhs); 
+          assert(status == 0);
+        }
+        if (curptr != end) {
+          status = parse_operand(&curptr, end, &rhs);
+          assert(status == 0);
+        }
+        assert(curptr == end);
+        handle_instr(ctx, opstr, &lhs, &rhs, sizesuf);
+        operand_free(&lhs);
+        operand_free(&rhs);
       } else {
   		  printf("token is %s\n", opstr);
         assert(false && "Unsupported token");
       }
       free(opstr);
+      break;
     }
 		curptr = tokenend;
 	}

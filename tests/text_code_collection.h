@@ -2,8 +2,8 @@
 
 // text code for examples/sum.c
 const char *sum_text_code = R"(
-  # push %ebp
-  55
+  push %ebp
+  # 55
   mov %esp, %ebp
   # 2 alternative ways to encode:
   # 89 e5

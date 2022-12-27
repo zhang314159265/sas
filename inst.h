@@ -7,9 +7,15 @@
 
 struct dict valid_instr_stem;
 
+enum {
+  OPC_mov = 0,
+  OPC_push = 1,
+};
+
 __attribute__((constructor)) static void init_valid_instr_stem() {
   valid_instr_stem = dict_create();
-  dict_put(&valid_instr_stem, "mov", 0); // value is not used
+  dict_put(&valid_instr_stem, "mov", OPC_mov);
+  dict_put(&valid_instr_stem, "push", OPC_push);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -21,7 +27,7 @@ bool is_valid_instr_stem(const char* _s, int len) {
 
 struct dict cc2opcodeoff;
 
- __attribute__((constructor)) static void init_cc2opcodeoff() {
+__attribute__((constructor)) static void init_cc2opcodeoff() {
   cc2opcodeoff = dict_create();
   dict_put(&cc2opcodeoff, "o", 0x0);
   dict_put(&cc2opcodeoff, "no", 0x1);
@@ -164,18 +170,18 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   }
 }
 
-static void handle_loadstore_i32(struct asctx* ctx, struct operand o1, struct operand o2) {
+static void handle_loadstore_i32(struct asctx* ctx, struct operand* o1, struct operand* o2) {
   struct operand reg_opd, mem_opd;
-  if (is_mem(&o1)) {
+  if (is_mem(o1)) {
     // load
     str_append(&ctx->bin_code, 0x8b);
-    reg_opd = o2;
-    mem_opd = o1;
+    reg_opd = *o2;
+    mem_opd = *o1;
   } else {
     // store
     str_append(&ctx->bin_code, 0x89);
-    reg_opd = o1;
-    mem_opd = o2;
+    reg_opd = *o1;
+    mem_opd = *o2;
   }
   assert(is_mem(&mem_opd));
   assert(is_gpr32(&reg_opd));
@@ -183,20 +189,20 @@ static void handle_loadstore_i32(struct asctx* ctx, struct operand o1, struct op
   emit_modrm_sib_disp(ctx, reg_opd.regidx, &mem_opd);
 }
 
-static void handle_load_i32(struct asctx* ctx, struct operand o1, struct operand o2) {
-  assert(is_mem(&o1));
-  assert(is_gpr32(&o2));
+static void handle_load_i32(struct asctx* ctx, struct operand* o1, struct operand* o2) {
+  assert(is_mem(o1));
+  assert(is_gpr32(o2));
   handle_loadstore_i32(ctx, o1, o2);
 }
 
-static void handle_store_i32(struct asctx* ctx, struct operand o1, struct operand o2) {
-  assert(is_gpr32(&o1));
-  assert(is_mem(&o2));
+static void handle_store_i32(struct asctx* ctx, struct operand* o1, struct operand* o2) {
+  assert(is_gpr32(o1));
+  assert(is_mem(o2));
   handle_loadstore_i32(ctx, o1, o2);
 }
 
-static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2, char sizesuf) {
-  if (is_gpr32(&o1) && is_gpr32(&o2)) {
+static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2, char sizesuf) {
+  if (is_gpr32(o1) && is_gpr32(o2)) {
     // mov gpr32_0, gpr32_1
     // there are 2 alternative ways to encode this instruction.
     // We can encode this as a load (opcode 0x8b) or store (opcode 0x89).
@@ -205,23 +211,53 @@ static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2, 
     // When interpreted as a store, gpr32_0 will be encoded in reg bits in ModR/M byte,
     // while gpr32_1 will be encoded in r/m bits in ModR/M byte.
     str_append(&ctx->bin_code, 0x89);
-    emit_modrm_sib_disp(ctx, o1.regidx, &o2);
-  } else if (is_imm(&o1) && is_gpr32(&o2)) {
+    emit_modrm_sib_disp(ctx, o1->regidx, o2);
+  } else if (is_imm(o1) && is_gpr32(o2)) {
     // move imm to gpr32
     // always encode imm as imm32 for simplicity
-    str_append(&ctx->bin_code, 0xb8 + o2.regidx);
-    str_append_i32(&ctx->bin_code, o1.imm);
-  } else if (is_mem(&o1) && is_gpr32(&o2)) {
+    str_append(&ctx->bin_code, 0xb8 + o2->regidx);
+    str_append_i32(&ctx->bin_code, o1->imm);
+  } else if (is_mem(o1) && is_gpr32(o2)) {
     handle_load_i32(ctx, o1, o2);
-  } else if (is_gpr32(&o1) && is_mem(&o2)) {
+  } else if (is_gpr32(o1) && is_mem(o2)) {
     handle_store_i32(ctx, o1, o2);
-  } else if (is_imm(&o1) && is_mem(&o2) && sizesuf == 'l') {
+  } else if (is_imm(o1) && is_mem(o2) && sizesuf == 'l') {
     // mov imm to r/m32
     str_append(&ctx->bin_code, 0xc7);
-    emit_modrm_sib_disp(ctx, 0, &o2); // emit modrm, sib, displacement
-    str_append_i32(&ctx->bin_code, o1.imm);
+    emit_modrm_sib_disp(ctx, 0, o2); // emit modrm, sib, displacement
+    str_append_i32(&ctx->bin_code, o1->imm);
   } else {
-    printf("handle_mov %s %s\n", o1.repr, o2.repr);
+    printf("handle_mov %s %s\n", o1->repr, o2->repr);
     assert(false && "handle mov");
+  }
+}
+
+static void handle_push(struct asctx* ctx, struct operand* opd, char sizebuf) {
+  if (is_gpr32(opd)) {
+    str_append(&ctx->bin_code, 0x50 + opd->regidx);
+  } else {
+    assert(false && "handle_push");
+  }
+}
+
+static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *o1, struct operand *o2, char sizesuf) {
+  int opc = dict_lookup_nomiss(&valid_instr_stem, opstem);
+  switch (opc) {
+    case OPC_push:
+      handle_push(ctx, o1, sizesuf);
+      break;
+    case OPC_mov:
+      handle_mov(ctx, o1, o2, sizesuf);
+      break;
+    default:
+      printf("handle instruction %s", opstem);
+      if (sizesuf) {
+        printf("(%c)", sizesuf);
+      }
+      printf(":\n");
+      operand_debug(o1, 2);
+      operand_debug(o2, 2);
+      assert(false && "handle_instr ni");
+      break;
   }
 }
