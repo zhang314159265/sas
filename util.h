@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 
+#define bool int
 #define true 1
 #define false 0
 
@@ -25,7 +26,7 @@ int hex2int(char ch) {
 
 char* lenstrdup(const char* src, int len) {
   char* dst = (char*) malloc(len + 1);
-  assert(dst);
+  assert(dst != NULL);
   memcpy(dst, src, len);
   dst[len] = '\0';
   return dst;

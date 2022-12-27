@@ -94,7 +94,7 @@ int dict_put(struct dict* dict, const char* key, int val) {
 
 int dict_lookup_nomiss(struct dict* dict, const char *key) {
   struct dict_entry* entry = _dict_find(dict->entries, dict->capacity, key);
-  assert(entry->key);
+  assert(entry->key != NULL);
   return entry->val;
 }
 

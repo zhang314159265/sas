@@ -15,11 +15,11 @@ const char *sum_text_code = R"(
   # sub $0x14, %esp
   83 ec 14
 
-  # movl $0x0, -0x10(%ebp)
-  c7 45 f0 00 00 00 00
+  movl $0x0, -0x10(%ebp)
+  # c7 45 f0 00 00 00 00
 
-  # movl $0x1, -0xc(%ebp)
-  c7 45 f4 01 00 00 00
+  movl $0x1, -0xc(%ebp)
+  # c7 45 f4 01 00 00 00
 
   # jmp to cond check
   # Instead of using short jmp: eb 0a
@@ -27,8 +27,8 @@ const char *sum_text_code = R"(
   jmp l_loop_cond
 
 l_loop_body:
-  # mov -0xc(%ebp), %eax
-  8b 45 f4
+  mov -0xc(%ebp), %eax
+  # 8b 45 f4
 
   # add %eax, -0x10(%ebp)
   01 45 f0

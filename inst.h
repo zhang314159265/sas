@@ -3,6 +3,21 @@
 #include "asctx.h"
 #include "dict.h"
 #include "operand.h"
+#include "util.h"
+
+struct dict valid_instr_stem;
+
+__attribute__((constructor)) static void init_valid_instr_stem() {
+  valid_instr_stem = dict_create();
+  dict_put(&valid_instr_stem, "mov", 0); // value is not used
+}
+
+bool is_valid_instr_stem(const char* _s, int len) {
+  const char* s = lenstrdup(_s, len);
+  struct dict_entry *entry = dict_lookup(&valid_instr_stem, s);
+  free((void*) s);
+  return entry->key != NULL;
+}
 
 struct dict cc2opcodeoff;
 
@@ -107,6 +122,48 @@ static void handle_call(struct asctx* ctx, const char* func_name) {
   vec_append(&ctx->rel_list, &item);
 }
 
+/*
+ * rm_opd should either be a reigsrer or an memory operand
+ */
+static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand* rm_opd) {
+  assert(is_gpr(rm_opd) || is_mem(rm_opd));
+
+  if (is_gpr(rm_opd)) {
+    // ModR/M byte:
+    uint8_t mod = 0xc0 | (reg_opext << 3) | (rm_opd->regidx);
+    str_append(&ctx->bin_code, mod);
+    return;
+  }
+
+  struct operand mem_opd = *rm_opd;
+
+  // TODO: only handle simple case of disp(%base) right now
+  assert(mem_opd.base_regidx >= 0);
+  assert(mem_opd.index_regidx < 0);
+  assert(mem_opd.log2scale < 0);
+
+  if (mem_opd.disp == 0) {
+    // mod 00
+    assert(mem_opd.base_regidx != 4 && mem_opd.base_regidx != 5);
+    str_append(&ctx->bin_code, 0x00 | (reg_opext << 3) | mem_opd.base_regidx);
+  } else if (is_int8(mem_opd.disp)) {
+    // mod 01
+    // ModRM: 01 reg_opd.regidx mem_opd.base_regidx
+    assert(mem_opd.base_regidx != 4); // TODO: handle SIB case
+    str_append(&ctx->bin_code, 0x40 | (reg_opext << 3) | mem_opd.base_regidx);
+
+    // emit the disp8
+    str_append(&ctx->bin_code, (int8_t) mem_opd.disp);
+  } else {
+    // mod 10
+    assert(mem_opd.base_regidx != 4); // TODO: handle SIB case
+    str_append(&ctx->bin_code, 0x80 | (reg_opext << 3) | mem_opd.base_regidx);
+
+    // emit the disp32
+    str_append_i32(&ctx->bin_code, mem_opd.disp);
+  }
+}
+
 static void handle_loadstore_i32(struct asctx* ctx, struct operand o1, struct operand o2) {
   struct operand reg_opd, mem_opd;
   if (is_mem(&o1)) {
@@ -123,31 +180,7 @@ static void handle_loadstore_i32(struct asctx* ctx, struct operand o1, struct op
   assert(is_mem(&mem_opd));
   assert(is_gpr32(&reg_opd));
 
-  // TODO: only handle simple case of disp(%base) right now
-  assert(mem_opd.base_regidx >= 0);
-  assert(mem_opd.index_regidx < 0);
-  assert(mem_opd.log2scale < 0);
-
-  if (mem_opd.disp == 0) {
-    // mod 00
-    assert(mem_opd.base_regidx != 4 && mem_opd.base_regidx != 5);
-    str_append(&ctx->bin_code, 0x00 | (reg_opd.regidx << 3) | mem_opd.base_regidx);
-  } else if (is_int8(mem_opd.disp)) {
-    // mod 01
-    // ModRM: 01 reg_opd.regidx mem_opd.base_regidx
-    assert(mem_opd.base_regidx != 4); // TODO: handle SIB case
-    str_append(&ctx->bin_code, 0x40 | (reg_opd.regidx << 3) | mem_opd.base_regidx);
-
-    // emit the disp8
-    str_append(&ctx->bin_code, (int8_t) mem_opd.disp);
-  } else {
-    // mod 10
-    assert(mem_opd.base_regidx != 4); // TODO: handle SIB case
-    str_append(&ctx->bin_code, 0x80 | (reg_opd.regidx << 3) | mem_opd.base_regidx);
-
-    // emit the disp32
-    str_append_i32(&ctx->bin_code, mem_opd.disp);
-  }
+  emit_modrm_sib_disp(ctx, reg_opd.regidx, &mem_opd);
 }
 
 static void handle_load_i32(struct asctx* ctx, struct operand o1, struct operand o2) {
@@ -162,7 +195,7 @@ static void handle_store_i32(struct asctx* ctx, struct operand o1, struct operan
   handle_loadstore_i32(ctx, o1, o2);
 }
 
-static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2) {
+static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2, char sizesuf) {
   if (is_gpr32(&o1) && is_gpr32(&o2)) {
     // mov gpr32_0, gpr32_1
     // there are 2 alternative ways to encode this instruction.
@@ -172,10 +205,7 @@ static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2) 
     // When interpreted as a store, gpr32_0 will be encoded in reg bits in ModR/M byte,
     // while gpr32_1 will be encoded in r/m bits in ModR/M byte.
     str_append(&ctx->bin_code, 0x89);
-    // ModR/M byte:
-    // 11 gpr32_0 (3bit) gpr32_1 (3bit)
-    uint8_t mod = 0xc0 | (o1.regidx << 3) | (o2.regidx);
-    str_append(&ctx->bin_code, mod);
+    emit_modrm_sib_disp(ctx, o1.regidx, &o2);
   } else if (is_imm(&o1) && is_gpr32(&o2)) {
     // move imm to gpr32
     // always encode imm as imm32 for simplicity
@@ -185,6 +215,11 @@ static void handle_mov(struct asctx* ctx, struct operand o1, struct operand o2) 
     handle_load_i32(ctx, o1, o2);
   } else if (is_gpr32(&o1) && is_mem(&o2)) {
     handle_store_i32(ctx, o1, o2);
+  } else if (is_imm(&o1) && is_mem(&o2) && sizesuf == 'l') {
+    // mov imm to r/m32
+    str_append(&ctx->bin_code, 0xc7);
+    emit_modrm_sib_disp(ctx, 0, &o2); // emit modrm, sib, displacement
+    str_append_i32(&ctx->bin_code, o1.imm);
   } else {
     printf("handle_mov %s %s\n", o1.repr, o2.repr);
     assert(false && "handle mov");

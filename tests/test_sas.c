@@ -38,6 +38,10 @@ void test_mov() {
   // test store disp32
   bin_code = parse_text_code_simple(NULL, "mov %eax, 0x1234(%ebp)");
   assert(str_check(&bin_code, "898534120000"));
+
+  // test mov imm to r/m32
+  bin_code = parse_text_code_simple(NULL, "movl $0x1, -0xc(%ebp)");
+  assert(str_check(&bin_code, "c745f401000000"));
 }
 
 int main(void) {

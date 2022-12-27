@@ -138,7 +138,14 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
       }
 		} else {
       char* opstr = lenstrdup(curptr, tokenend - curptr);
+      assert(tokenend - curptr > 0);
       int cc_opcode_off = -1;
+      char sizesuf = '\0';
+      if (is_valid_instr_stem(opstr, tokenend - curptr - 1)) {
+        sizesuf = opstr[tokenend - curptr - 1];
+        opstr[tokenend - curptr - 1] = '\0';
+      }
+      
       if (strcmp("jmp", opstr) == 0 || (cc_opcode_off = is_jcc(opstr)) >= 0) {
         curptr = skip_spaces(tokenend, end);
         tokenend = gettoken(curptr, end);
@@ -162,7 +169,7 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         status = parse_operand(&curptr, end, &o2);
         assert(status == 0);
         assert(curptr == end);
-        handle_mov(ctx, o1, o2);
+        handle_mov(ctx, o1, o2, sizesuf);
         operand_free(&o1);
         operand_free(&o2);
         break;

@@ -82,6 +82,10 @@ static int is_gpr32(struct operand* op) {
   return op->type == REG && op->nbit == 32;
 }
 
+static int is_gpr(struct operand* op) {
+  return op->type == REG;
+}
+
 static int is_imm(struct operand* op) {
   return op->type == IMM;
 }
