@@ -53,6 +53,9 @@ void operand_debug(struct operand* opd, int indent) {
   case IMM:
     printf("imm%d\n", is_int8(opd->imm) ? 8 : 32);
     break;
+  case MEM:
+    printf("mem\n");
+    break;
   default:
     assert(false && "operand_debug: can not reach here");
   }
@@ -114,6 +117,15 @@ static int is_imm8(struct operand* op) {
 
 static int is_mem(struct operand* op) {
   return op->type == MEM;
+}
+
+static bool is_rm32(struct operand* op) {
+  return is_gpr32(op) || is_mem(op);
+}
+
+// check size suffix for mem operand
+static bool is_rm32_check(struct operand* op, char opsuf) {
+  return is_gpr32(op) || (is_mem(op) && opsuf == 'l');
 }
 
 // return 0 if the input string is an immediate number (without the '$' prefix)

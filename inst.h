@@ -11,6 +11,7 @@ enum {
   OPC_mov,
   OPC_push,
   OPC_sub,
+  OPC_add,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -18,6 +19,7 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "mov", OPC_mov);
   dict_put(&valid_instr_stem, "push", OPC_push);
   dict_put(&valid_instr_stem, "sub", OPC_sub);
+  dict_put(&valid_instr_stem, "add", OPC_add);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -252,6 +254,19 @@ static void handle_sub(struct asctx* ctx, struct operand *o1, struct operand *o2
   }
 }
 
+static void handle_add(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
+  if (is_gpr32(o1) && is_rm32(o2)) {
+    str_append(&ctx->bin_code, 0x01);
+    emit_modrm_sib_disp(ctx, o1->regidx, o2);
+  } else if (is_imm8(o1) && is_rm32_check(o2, sizesuf)) {
+    str_append(&ctx->bin_code, 0x83);
+    emit_modrm_sib_disp(ctx, 0, o2);
+    str_append(&ctx->bin_code, (int8_t) o1->imm);
+  } else {
+    assert(false && "handle_add");
+  }
+}
+
 static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *o1, struct operand *o2, char sizesuf) {
   int opc = dict_lookup_nomiss(&valid_instr_stem, opstem);
   switch (opc) {
@@ -263,6 +278,9 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_sub:
       handle_sub(ctx, o1, o2, sizesuf);
+      break;
+    case OPC_add:
+      handle_add(ctx, o1, o2, sizesuf);
       break;
     default:
       printf("handle instruction %s", opstem);

@@ -14,7 +14,6 @@ const char *sum_text_code = R"(
 
   sub $0x14, %esp
   # 83 ec 14
-  ################# SPLIT ################
 
   movl $0x0, -0x10(%ebp)
   # c7 45 f0 00 00 00 00
@@ -31,11 +30,12 @@ l_loop_body:
   mov -0xc(%ebp), %eax
   # 8b 45 f4
 
-  # add %eax, -0x10(%ebp)
-  01 45 f0
+  add %eax, -0x10(%ebp)
+  # 01 45 f0
 
-  # addl $0x1, -0xc(%ebp)
-  83 45 f4 01
+  addl $0x1, -0xc(%ebp)
+  # 83 45 f4 01
+  ################# SPLIT ################
 
 l_loop_cond:
   # cmpl $0x64, -0xc(%ebp)
