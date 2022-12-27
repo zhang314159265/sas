@@ -9,11 +9,12 @@ const char *sum_text_code = R"(
   # 89 e5
   # 8b ec
 
-  # push %ecx
-  51
+  push %ecx
+  # 51
 
-  # sub $0x14, %esp
-  83 ec 14
+  sub $0x14, %esp
+  # 83 ec 14
+  ################# SPLIT ################
 
   movl $0x0, -0x10(%ebp)
   # c7 45 f0 00 00 00 00

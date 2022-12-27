@@ -50,6 +50,9 @@ void operand_debug(struct operand* opd, int indent) {
   case NUL:
     printf("-NO OPERAND-\n");
     break;
+  case IMM:
+    printf("imm%d\n", is_int8(opd->imm) ? 8 : 32);
+    break;
   default:
     assert(false && "operand_debug: can not reach here");
   }
@@ -103,6 +106,10 @@ static int is_gpr(struct operand* op) {
 
 static int is_imm(struct operand* op) {
   return op->type == IMM;
+}
+
+static int is_imm8(struct operand* op) {
+  return op->type == IMM && is_int8(op->imm);
 }
 
 static int is_mem(struct operand* op) {
