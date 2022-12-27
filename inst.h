@@ -15,6 +15,7 @@ enum {
   OPC_cmp,
   OPC_leave,
   OPC_ret,
+  OPC_int,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -26,6 +27,7 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "cmp", OPC_cmp);
   dict_put(&valid_instr_stem, "leave", OPC_leave);
   dict_put(&valid_instr_stem, "ret", OPC_ret);
+  dict_put(&valid_instr_stem, "int", OPC_int);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -173,6 +175,18 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   }
 }
 
+/*
+ * No matter if opd->imm is in int8 range, emit it as imm32.
+ */
+static void emit_imm32(struct asctx* ctx, struct operand* opd) {
+  assert(opd->type == IMM);
+  str_append_i32(&ctx->bin_code, opd->imm);
+  if (opd->imm_sym) {
+    // need relocation
+    asctx_add_relocation(ctx, opd->imm_sym, ctx->bin_code.len - 4, R_386_32);
+  }
+}
+
 static void handle_loadstore_i32(struct asctx* ctx, struct operand* o1, struct operand* o2) {
   struct operand reg_opd, mem_opd;
   if (is_mem(o1)) {
@@ -219,7 +233,7 @@ static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2
     // move imm to gpr32
     // always encode imm as imm32 for simplicity
     str_append(&ctx->bin_code, 0xb8 + o2->regidx);
-    str_append_i32(&ctx->bin_code, o1->imm);
+    emit_imm32(ctx, o1);
   } else if (is_mem(o1) && is_gpr32(o2)) {
     handle_load_i32(ctx, o1, o2);
   } else if (is_gpr32(o1) && is_mem(o2)) {
@@ -235,7 +249,7 @@ static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2
   }
 }
 
-static void handle_push(struct asctx* ctx, struct operand* opd, char sizebuf) {
+static void handle_push(struct asctx* ctx, struct operand* opd, char sizesuf) {
   if (is_gpr32(opd)) {
     str_append(&ctx->bin_code, 0x50 + opd->regidx);
   } else if (is_mem(opd)) { // imply 32 bit
@@ -244,14 +258,21 @@ static void handle_push(struct asctx* ctx, struct operand* opd, char sizebuf) {
   } else if (is_imm(opd)) {
     // TODO: we could use less bytes for imm8
     str_append(&ctx->bin_code, 0x68);
-    str_append_i32(&ctx->bin_code, opd->imm);
-    if (opd->imm_sym) {
-      // need relocation
-      asctx_add_relocation(ctx, opd->imm_sym, ctx->bin_code.len - 4, R_386_32);
-    }
+    emit_imm32(ctx, opd);
   } else {
     assert(false && "handle_push");
   }
+}
+
+static void handle_int(struct asctx* ctx, struct operand* opd, char sizesuf) {
+  // the immediate value for int instruction is special since it's interpreted
+  // as an unsigend 8 bit integer. E.g. $0x80 is interpreted as 128 rather than
+  // -128 if interpreted as int8_t.
+  assert(is_imm(opd));
+  assert(!opd->imm_sym);
+  assert(opd->imm >= 0 && opd->imm <= 255);
+  str_append(&ctx->bin_code, 0xcd); 
+  str_append(&ctx->bin_code, (uint8_t) opd->imm);
 }
 
 static void handle_sub(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
@@ -310,6 +331,9 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_ret:
       str_append(&ctx->bin_code, 0xc3);
+      break;
+    case OPC_int:
+      handle_int(ctx, o1, sizesuf);
       break;
     default:
       printf("handle instruction %s", opstem);

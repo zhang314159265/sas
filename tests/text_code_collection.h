@@ -35,13 +35,11 @@ l_loop_body:
 
   addl $0x1, -0xc(%ebp)
   # 83 45 f4 01
-  ################# SPLIT ################
 
 l_loop_cond:
   cmpl $0x64, -0xc(%ebp)
   # 83 7d f4 64
 
-  # jle to loop body
   # 7e f0
   jle l_loop_body
 

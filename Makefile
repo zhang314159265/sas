@@ -1,4 +1,4 @@
-first: test_jit_sum
+first: test_jit_hello_s
 
 CFLAGS = -g -m32 -Wno-pointer-arith
 
