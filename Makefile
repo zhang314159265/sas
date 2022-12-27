@@ -60,3 +60,7 @@ test_label:
 test_operand:
 	gcc -I. tests/test_operand.c $(CFLAGS)
 	./a.out
+
+test_sas:
+	gcc -I. tests/test_sas.c $(CFLAGS)
+	./a.out

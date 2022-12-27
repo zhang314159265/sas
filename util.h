@@ -8,6 +8,10 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
 
+int is_int8(int32_t val) {
+  return val >= -128 && val <= 127; 
+}
+
 int hex2int(char ch) {
 	ch = tolower(ch);
 	if (ch >= '0' && ch <= '9') {

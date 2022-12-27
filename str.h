@@ -53,6 +53,19 @@ static inline void str_hexdump(struct str* pstr) {
 	printf("\n");
 }
 
+// the caller has the responsibility to free the returned pointer
+static char* str_to_hex(struct str* pstr) {
+  char* buf;
+  buf = malloc(pstr->len * 2 + 1);
+  char *cur = buf;
+  for (int i = 0; i < pstr->len; ++i) {
+    sprintf(cur, "%02x", (unsigned char) pstr->buf[i]);
+    cur += 2;
+  }
+  *cur = '\0';
+  return buf;
+}
+
 static inline void str_free(struct str* pstr) {
   if (pstr->buf) {
 	  free(pstr->buf);
@@ -73,4 +86,14 @@ static struct str str_move(struct str* pstr) {
   pstr->len = 0;
   pstr->buf = NULL;
   return ret;
+}
+
+/*
+ * Return 1 if hexdump of the str matches 'hex' 0 otherwise.
+ */
+static int str_check(struct str* pstr, const char* hex) {
+  char* actual = str_to_hex(pstr);
+  int r = strcasecmp(actual, hex);
+  free(actual);
+  return r == 0;
 }

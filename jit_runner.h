@@ -166,6 +166,9 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
         operand_free(&o1);
         operand_free(&o2);
         break;
+      } else if (strcmp("nop", opstr) == 0) {
+        assert(tokenend == end);
+        str_append(&ctx->bin_code, 0x90);
       } else {
   		  printf("token is %s\n", opstr);
         assert(false && "Unsupported token");

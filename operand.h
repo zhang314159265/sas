@@ -2,6 +2,40 @@
 
 #include <stdio.h>
 #include "dict.h"
+#include "tokenizer.h"
+
+enum OPERAND_TYPE {
+  REG = 0,
+  IMM = 1,
+  MEM = 2,
+};
+
+// can represent a imm/reg/mem operand
+struct operand {
+  const char* repr; // optional string representation of the operand
+
+  int type; // OPERAND_TYPE
+  int nbit; // -1 if unknown
+
+  // REG specific fields 
+  // {
+  int regidx;
+  // }
+
+  // IMM specific fields
+  // {
+  int32_t imm;
+  // }
+
+  // MEM specific fields
+  // {
+  int32_t disp;
+  // assume base and index registers to be 32 bit
+  int base_regidx; // -1 if not exist
+  int index_regidx; // -1 if not exist
+  int log2scale; // -1 if not applicable
+  // }
+};
 
 struct dict twoch2reg16;
 struct dict twoch2reg8;
@@ -28,30 +62,6 @@ __attribute__((constructor)) static void init_twoch2reg() {
   dict_put(&twoch2reg8, "bh", 7);
 }
 
-enum OPERAND_TYPE {
-  REG = 0,
-  IMM = 1,
-  MEM = 2,
-};
-
-// can represent a imm/reg/mem operand
-struct operand {
-  const char* repr; // optional string representation of the operand
-
-  int type; // OPERAND_TYPE
-  int nbit; // -1 if unknown
-
-  // REG specific fields 
-  // {
-  int regidx;
-  // }
-
-  // IMM specific fields
-  // {
-  int32_t imm;
-  // }
-};
-
 /*
  * Return [0, 7] if the input reprends a 32 bit general purpose register;
  * return -1 otherwise
@@ -76,17 +86,13 @@ static int is_imm(struct operand* op) {
   return op->type == IMM;
 }
 
-// return 0 if the input string is an immediate number (prefix by '$')
-// return a negative value otherwise.
-//
-// TODO: may need generalize this function to handle immediate numbers
-// not prefixed by '$'
-static int parse_imm(const char*s, int32_t* pimm) {
-  if (!*s || s[0] != '$') {
-    return -1;
-  }
-  ++s;
+static int is_mem(struct operand* op) {
+  return op->type == MEM;
+}
 
+// return 0 if the input string is an immediate number (without the '$' prefix)
+// return a negative value otherwise.
+static int parse_imm_noprefix(const char*s, int32_t* pimm) {
   // only handle decimal or hexadecimal. (i.e. 012 will be treatd as 12 in decimal rather than 10)
   int sign = 1; // default
   if (*s == '+' || *s == '-') {
@@ -122,6 +128,76 @@ static int parse_imm(const char*s, int32_t* pimm) {
   return 0;
 }
 
+// return 0 if the input string is an immediate number (prefix by '$')
+// return a negative value otherwise.
+static int parse_imm(const char*s, int32_t* pimm) {
+  if (!*s || s[0] != '$') {
+    return -1;
+  }
+  ++s;
+  return parse_imm_noprefix(s, pimm);
+}
+
+/*
+ * Returns 0 if the input represents a memory operand; return -1 otherwise
+ */
+static int parse_mem(const char* s, struct operand* op) {
+  // it's fine that we mark op as MEM too early.
+  // It will be overriden later if this operand is not a memory operand.
+  op->type = MEM;
+  op->disp = 0;
+  op->base_regidx = -1;
+  op->index_regidx = -1;
+  op->log2scale = -1;
+  const char* end = s + strlen(s);
+  const char* cur = s;
+  int status;
+
+  cur = skip_spaces(cur, end);
+  if (cur == end) {
+    return -1;
+  }
+  if (*cur != '(') {
+    // displacement
+    const char *disp_start = cur;
+    while (*cur != '(' && *cur) {
+      ++cur; 
+    }
+    char *dispstr = lenstrdup(disp_start, cur - disp_start);
+    status = parse_imm_noprefix(dispstr, &op->disp);
+    free(dispstr);
+    if (status != 0) {
+      return -1;
+    }
+  }
+
+  // only a displacement
+  if (!*cur) {
+    return 0;
+  }
+  assert(*cur == '(');
+  ++cur;
+
+  // TODO: asssume only a base register right now. Need handle more complex
+  // case like SIB or missing base regiser but having index register.
+  const char *base_reg_start = cur;
+  while (*cur != ',' && *cur != ')') {
+    ++cur;
+  }
+  char *base_reg_str = lenstrdup(base_reg_start, cur - base_reg_start);
+  op->base_regidx = parse_gpr32(base_reg_str);
+  free(base_reg_str);
+  if (op->base_regidx < 0) {
+    return -1;
+  }
+  if (*cur != ')') {
+    return -1;
+  }
+  ++cur;
+  assert(*cur == '\0');
+  return 0;
+}
+
 static void operand_init(struct operand* op) {
   const char* repr = op->repr;
   int regidx = -1;
@@ -142,6 +218,8 @@ static void operand_init(struct operand* op) {
     } else {
       op->nbit = 32;
     }
+  } else if ((status = parse_mem(repr, op)) == 0) {
+    // nothing else to do here
   } else {
     printf("not yet suport initializing operand with '%s'\n", op->repr);
     assert(false && "operand_init ni");
@@ -153,4 +231,52 @@ static void operand_free(struct operand* op) {
     free((void*) op->repr);
     op->repr = NULL;
   }
+}
+
+/*
+ * Return 0 on success and a negative value for failure.
+ *
+ * On success, set popd->repr the whole string representing the operand.
+ * Rely on operand_init to futher parse the operand string to understand if
+ * it's a register/immediate number/memory operand and what's its size.
+ */
+static int parse_operand(const char** pcur, const char* end, struct operand* popd) {
+  const char* cur = *pcur;
+  cur = skip_spaces(cur, end);
+  if (cur == end) {
+    return -1;
+  }
+
+  // finish parsing when reaching end or comma and balance is 0
+  int balance = 0;
+  const char* start = cur;
+  const char* repr = NULL;
+  while (true) {
+    if (cur == end) {
+      if (balance > 0) {
+        return -1;
+      } else {
+        repr = lenstrdup(start, end - start);
+        break;
+      }
+    }
+    if (*cur == ',' && balance == 0) {
+      repr = lenstrdup(start, cur - start);
+      ++cur;
+      break;
+    }
+    if (*cur == '(') {
+      ++balance;
+    } else if (*cur == ')') {
+      assert(balance > 0);
+      --balance;
+    }
+    ++cur;
+  }
+
+  assert(repr);
+  popd->repr = repr;
+  operand_init(popd);
+  *pcur = cur;
+  return 0;
 }
