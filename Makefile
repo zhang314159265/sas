@@ -1,4 +1,4 @@
-first: test_jit_hello_s
+first: test_jit_hello_libc
 
 CFLAGS = -g -m32 -Wno-pointer-arith
 
