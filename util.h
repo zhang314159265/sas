@@ -1,6 +1,10 @@
 #pragma once
 
 #include <ctype.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <assert.h>
 
 #define bool int
 #define true 1
@@ -8,6 +12,11 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
+
+static int make_align(int val, int align) {
+  assert(align > 0);
+  return (val + align - 1) / align * align;
+}
 
 int is_int8(int32_t val) {
   return val >= -128 && val <= 127; 

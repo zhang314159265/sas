@@ -71,7 +71,7 @@ const char *gettoken(const char *cur, const char *end) {
  *
  */
 void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, const char *argnames[], int argvals[]) {
-	#if 1
+	#if 0
 	printf("Line: %.*s\n", linelen, line);
 	#endif
 	const char *curptr = line;

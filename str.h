@@ -15,7 +15,11 @@ static inline struct str str_create(int init_capa) {
 	struct str str;
 	str.capacity = init_capa;
 	str.len = 0;
-	str.buf = (char*) malloc(str.capacity);
+  if (str.capacity > 0) {
+  	str.buf = (char*) malloc(str.capacity);
+  } else {
+    str.buf = NULL;
+  }
 	return str;
 }
 
@@ -40,6 +44,18 @@ static inline void str_nappend(struct str* pstr, int n, char ch) {
   for (int i = 0; i < n; ++i) {
     str_append(pstr, ch);
   }
+}
+
+/*
+ * Concat an cstr (with training '\0') and return the size before concating.
+ */
+static int str_concat(struct str* str, const char* extra) {
+  int ret = str->len;
+  int n = strlen(extra) + 1;
+  for (int i = 0; i < n; ++i) {
+    str_append(str, extra[i]);
+  }
+  return ret;
 }
 
 static inline void str_hexdump(struct str* pstr) {

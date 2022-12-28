@@ -1,6 +1,7 @@
 #!/bin/bash
 set -e
 
+cd tests
 for targ in `cat Makefile | grep "^test_.*" | sed 's/://'`; do
   echo " .. running $targ .."
   make $targ
