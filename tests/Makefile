@@ -76,3 +76,9 @@ test_operand:
 test_sas:
 	gcc -I$(SRC_ROOT) test_sas.c $(CFLAGS)
 	./a.out
+
+test_elfe2e_trivial:
+	gcc -I$(SRC_ROOT) test_elfe2e_trivial.c $(CFLAGS)
+	./a.out
+	gcc -m32 /tmp/hello.o
+	(./a.out || echo $$?) | grep -q "88"
