@@ -39,6 +39,8 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 
 # Scratch
 
+- TODO: refactor `jit_runner.h`
+
 - WIP: convert hello-libc.s to elf
 
 - TODO: use relocation to handle label
@@ -48,7 +50,6 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
   - `harmonic_number`
   - `calc24`
 
-- TODO: refactor `jit_runner.c`
 - TODO: think about how to do codegen to handle instructions.
 
 - TODO: gradually use mnemonic for opcode in text code
