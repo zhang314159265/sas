@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "jit_runner.h"
+#include "sas.h"
 
 int main(int argc, char **argv) {
   assert(argc == 2 && "Missing assembly file");

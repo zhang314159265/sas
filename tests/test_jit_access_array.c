@@ -1,4 +1,4 @@
-#include "jit_runner.h"
+#include "sas.h"
 
 int main() {
   int arr[] = {7, 1, 2, 8, 4, 10, -2, 9};

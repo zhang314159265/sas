@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "jit_runner.h"
+#include "sas.h"
 #include <math.h>
 
 struct str harmonic() { // int n

@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "jit_runner.h"
+#include "sas.h"
 #include "sym.h"
 
 struct str is_prime() { // int n

@@ -236,10 +236,13 @@ static int parse_mem(const char* s, struct operand* op) {
   if (*cur != '(') {
     // displacement
     const char *disp_start = cur;
-    while (*cur != '(' && *cur) {
+    while (*cur != '(' && *cur && !isspace(*cur)) {
       ++cur; 
     }
     char *dispstr = lenstrdup(disp_start, cur - disp_start);
+    cur = skip_spaces(cur, end);
+    assert(*cur == '(' || !*cur);
+
     if (isalpha(*dispstr) || *dispstr == '_') {
       // symbol as displacement
       op->disp_sym = dispstr;
@@ -248,6 +251,7 @@ static int parse_mem(const char* s, struct operand* op) {
       status = parse_imm_noprefix(dispstr, &op->disp);
       free(dispstr);
     }
+
     if (status != 0) {
       return -1;
     }
@@ -393,6 +397,7 @@ static void operand_free(struct operand* op) {
  * Rely on operand_init to futher parse the operand string to understand if
  * it's a register/immediate number/memory operand and what's its size.
  *
+ * A success call will consume the separating comma if there is any.
  */
 static int parse_operand(const char** pcur, const char* end, struct operand* popd) {
   const char* cur = *pcur;

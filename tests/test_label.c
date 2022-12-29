@@ -1,5 +1,5 @@
 // check the comment in Makefile for why this test is not using gtest
-#include "jit_runner.h"
+#include "sas.h"
 #include "text_code_collection.h"
 
 int main(void) {

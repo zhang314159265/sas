@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include "elf_file.h"
-#include "jit_runner.h"
+#include "sas.h"
 
 int main(void) {
   struct elf_file ef = ef_create();

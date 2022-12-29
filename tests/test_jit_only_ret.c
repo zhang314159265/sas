@@ -1,4 +1,4 @@
-#include "jit_runner.h"
+#include "sas.h"
 
 int main(void) {
 	const char *text_code = R"(

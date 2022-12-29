@@ -1,4 +1,4 @@
-#include "jit_runner.h"
+#include "sas.h"
 
 void test_jmp() {
   struct str bin_code;
@@ -9,6 +9,7 @@ void test_jmp() {
     nop
   label:
   )");
+  str_hexdump(&bin_code);
   assert(str_check(&bin_code, "e903000000909090"));
 }
 

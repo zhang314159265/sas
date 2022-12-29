@@ -23,12 +23,16 @@ enum {
   OPC_test,
   OPC_neg,
   OPC_lea,
+  OPC_imul,
+  OPC_nop,
+  OPC_call,
+  OPC_cmovo,
+  OPC_jo,
+  OPC_jmp,
 
   // have separate entries for movzbl, movzwl so we don't need
   // handle two character size bytes elsewhere.
   OPC_movzbl,
-
-  OPC_imul,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -46,8 +50,13 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "test", OPC_test);
   dict_put(&valid_instr_stem, "neg", OPC_neg);
   dict_put(&valid_instr_stem, "lea", OPC_lea);
-  dict_put(&valid_instr_stem, "movzbl", OPC_movzbl);
   dict_put(&valid_instr_stem, "imul", OPC_imul);
+  dict_put(&valid_instr_stem, "nop", OPC_nop);
+  dict_put(&valid_instr_stem, "movzbl", OPC_movzbl);
+  dict_put(&valid_instr_stem, "call", OPC_call);
+  dict_put(&valid_instr_stem, "cmovo", OPC_cmovo);
+  dict_put(&valid_instr_stem, "jmp", OPC_jmp);
+  dict_put(&valid_instr_stem, "jo", OPC_jo);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -108,9 +117,7 @@ static void handle_TEMP2(struct asctx* ctx, struct operand *o1, struct operand *
  * For jmp, cc_opcode_off should be -1;
  * For jcc, cc_opcode_off will reside [0, 0xF]
  */
-static void handle_jmp(struct asctx* ctx, const char* label, int cc_opcode_off) {
-  struct dict_entry* label_entry = dict_lookup(&ctx->label2off, label);
-
+static void handle_jmp(struct asctx* ctx, struct operand* o1, int sizesuf, int cc_opcode_off) {
   // XXX to simplify the code, we always use near jmp (disp32) rather than
   // short jmp (disp8)
   //
@@ -122,6 +129,15 @@ static void handle_jmp(struct asctx* ctx, const char* label, int cc_opcode_off) 
   } else {
     str_append(&ctx->bin_code, 0xe9);
   }
+
+  // TODO: avoid duplicate the following 3 line with handle_call
+  assert(is_mem(o1));
+  assert(o1->disp_sym);
+  assert(o1->base_regidx < 0 && o1->index_regidx < 0 && o1->log2scale < 0);
+  const char* label = o1->disp_sym;
+  struct dict_entry* label_entry = dict_lookup(&ctx->label2off, label);
+
+  // TODO: use relocation to handle label
   uint32_t off = ctx->bin_code.len;
   uint32_t val;
   if (label_entry->key) {
@@ -136,13 +152,6 @@ static void handle_jmp(struct asctx* ctx, const char* label, int cc_opcode_off) 
   }
 
   str_append_i32(&ctx->bin_code, val);
-}
-
-static void handle_cmovcc(struct asctx* ctx, int cc_opcode_off, struct operand* o1, struct operand* o2, int sizesuf) {
-  assert(is_rm32(o1) && is_gpr32(o2));
-  emit_opcode(ctx, 0x0f);
-  emit_opcode(ctx, 0x40 + cc_opcode_off);
-  emit_modrm_sib_disp(ctx, o2->regidx, o1);
 }
 
 /*
@@ -169,9 +178,14 @@ static int is_jcc(const char* opstr) {
   return is_cc(opstr + 1);
 }
 
-static void handle_call(struct asctx* ctx, const char* func_name) {
+static void handle_call(struct asctx* ctx, struct operand* opd, char sizesuf) {
+  assert(is_mem(opd));
+  assert(opd->disp_sym);
+  assert(opd->base_regidx < 0 && opd->index_regidx < 0 && opd->log2scale < 0);
+  const char* func_name = opd->disp_sym;
   str_append(&ctx->bin_code, 0xe8);
   int offset = ctx->bin_code.len;
+  // addend is stored in the as_rel_s rather than inplace
   str_append_i32(&ctx->bin_code, 0);
 
   asctx_add_relocation(ctx, func_name, offset, R_386_PC32);
@@ -485,7 +499,20 @@ static void handle_imul(struct asctx* ctx, struct operand *o1, struct operand *o
   }
 }
 
-static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *o1, struct operand *o2, char sizesuf) {
+static void handle_cmovo(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf, int cc_opcode_off) {
+  printf("cc_opcode_off is %d\n", cc_opcode_off);
+  assert(cc_opcode_off >= 0 && cc_opcode_off <= 0xf);
+  assert(is_rm32(o1) && is_gpr32(o2));
+  emit_opcode(ctx, 0x0f);
+  emit_opcode(ctx, 0x40 + cc_opcode_off);
+  emit_modrm_sib_disp(ctx, o2->regidx, o1);
+}
+
+/*
+ * cc_opcode_off is only valid for setcc, jcc, cmovcc instructions.
+ * For others instructions, it should be -1.
+ */
+static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *o1, struct operand *o2, char sizesuf, int cc_opcode_off) {
   int opc = dict_lookup_nomiss(&valid_instr_stem, opstem);
   switch (opc) {
     case OPC_push:
@@ -512,6 +539,9 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
     case OPC_ret:
       str_append(&ctx->bin_code, 0xc3);
       break;
+    case OPC_nop:
+      str_append(&ctx->bin_code, 0x90);
+      break;
     case OPC_int:
       handle_int(ctx, o1, sizesuf);
       break;
@@ -532,6 +562,15 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_imul:
       handle_imul(ctx, o1, o2, sizesuf);
+      break;
+    case OPC_call:
+      handle_call(ctx, o1, sizesuf);
+      break;
+    case OPC_cmovo:
+      handle_cmovo(ctx, o1, o2, sizesuf, cc_opcode_off);
+      break;
+    case OPC_jo: case OPC_jmp:
+      handle_jmp(ctx, o1, sizesuf, cc_opcode_off);
       break;
     default:
       printf("handle instruction %s", opstem);
