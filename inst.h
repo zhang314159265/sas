@@ -135,14 +135,18 @@ static void handle_jmp(struct asctx* ctx, struct operand* o1, int sizesuf, int c
   assert(o1->disp_sym);
   assert(o1->base_regidx < 0 && o1->index_regidx < 0 && o1->log2scale < 0);
   const char* label = o1->disp_sym;
-  struct dict_entry* label_entry = dict_lookup(&ctx->label2off, label);
+
+  // alternatively we can always add a label patch entry and resolve it later
+  // even if the label is already defined.
+  struct dict_entry* label_entry = dict_lookup(&ctx->label2idx, label);
 
   // TODO: use relocation to handle label
   uint32_t off = ctx->bin_code.len;
   uint32_t val;
   if (label_entry->key) {
     // label already defined
-    val = label_entry->val - (off + 4);
+    struct label_metadata* md = vec_get_item(&ctx->labelmd_list, label_entry->val);
+    val = md->off - (off + 4);
   } else {
     val = 0;
     struct label_patch_entry patch_entry;

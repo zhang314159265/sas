@@ -7,7 +7,7 @@
 // to handle symbol name.
 
 struct as_rel_s {
-  int32_t offset;
+  int32_t offset; // TODO: assume the entry is for .text section
   uint8_t rel_type;
   const char* sym;
   int symlen;

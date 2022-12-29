@@ -8,10 +8,10 @@ int main(void) {
   struct asctx ctx = asctx_create();
   _parse_text_code(&ctx, NULL, text_code);
 
-  struct dict* label2off = &ctx.label2off;
-  assert(label2off->size == 2);
-  assert(dict_lookup_nomiss(label2off, "l_loop_body") == 26);
-  assert(dict_lookup_nomiss(label2off, "l_loop_cond") == 36);
+  struct dict* label2idx = &ctx.label2idx;
+  assert(label2idx->size == 2);
+  assert(asctx_get_label_metadata(&ctx, "l_loop_body")->off == 26);
+  assert(asctx_get_label_metadata(&ctx, "l_loop_cond")->off == 36);
   asctx_free(&ctx);
   return 0;
 }

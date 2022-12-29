@@ -13,6 +13,58 @@
 #include "inst.h"
 #include "tokenizer.h"
 #include "jit.h"
+#include "check.h"
+#include "elf.h"
+
+// do unescape inplace
+char* unescape(char* s) {
+  // TODO: only handle \n for now
+  // TODO: don't handle the case that '\' is itself escaped
+  char *pos = s, *cur = s;
+  while (*cur) {
+    if (*cur == '\\' && cur[1] == 'n') {
+      *pos++ = '\n';
+      cur += 2;
+    } else {
+      *pos++ = *cur++;
+    }
+  }
+  *pos = '\0';
+  return s;
+}
+
+void parse_directive(struct asctx* ctx, const char* directive, const char* cur, const char* end) {
+  cur = skip_spaces(cur, end);
+
+  // TODO avoid strcmp one by one
+  if (strcmp(directive, ".globl") == 0) {
+    const char* tokenend = gettoken(cur, end);
+    assert(tokenend == end);
+    const char* label = lenstrdup(cur, tokenend - cur);
+    struct label_metadata* md = asctx_register_label(ctx, label);
+    md->bind = STB_GLOBAL;
+    free((void*) label);
+  } else if (strcmp(directive, ".string") == 0) {
+    const char* tokenend = gettoken(cur, end);
+    assert(tokenend);
+    assert(tokenend == end);
+    assert(tokenend - cur >= 2);
+    assert(*cur == '"');
+    assert(tokenend[-1] == '"');
+
+    // NOTE: looks like the assembler need to handle escape sequence!
+    // otherwise printf will printf '\n' as 2 characters literally.
+    // In theory we could also let printf to handle the escaping.
+    // The most important thing is, exactly one of compiler/assembler/
+    // library should do the escape.
+    char *s = lenstrdup(cur + 1, tokenend - cur - 2);
+    unescape(s);
+    // TODO: putting everything including the string to .text for now
+    str_concat(&ctx->bin_code, s);
+  } else {
+    FAIL("can not handle directive %s", directive);
+  }
+}
 
 /*
  * The format of each line of the text code are defined as follows:
@@ -93,6 +145,11 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen) {
 
   // [cur, tokenend) represents the opcode for an assembly instruction
   char* opstr = lenstrdup(cur, tokenend - cur);
+  if (*opstr == '.') { // an assembler directive
+    parse_directive(ctx, opstr, tokenend, end); 
+    free(opstr);
+    return;
+  }
   assert(tokenend - cur > 0);
   int cc_opcode_off = -1;
   char sizesuf = '\0';

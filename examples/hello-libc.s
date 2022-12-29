@@ -7,4 +7,4 @@ main:
   ret
 
 msg:
-.asciz "Hello\n"
+.string "Hello\n"

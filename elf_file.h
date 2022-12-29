@@ -6,6 +6,7 @@
 #include "str.h"
 #include <assert.h>
 #include <stdio.h>
+#include "asctx.h"
 
 /* data structures for reading and writing elf files */
 struct elf_file {
@@ -16,11 +17,13 @@ struct elf_file {
   struct str code;
   struct str strtab;
   struct vec symtab;
+  struct vec reltext;
 
   uint16_t shn_text;
   uint16_t shn_strtab;
   uint16_t shn_symtab;
   uint16_t shn_shstrtab;
+  uint16_t shn_reltext;
 };
 
 /*
@@ -98,19 +101,24 @@ struct elf_file ef_create() {
   memset(&null_sym, 0, sizeof(Elf32_Sym));
   vec_append(&ef.symtab, &null_sym);
 
+  ef.reltext = vec_create(sizeof(Elf32_Rel));
+
   ef.shn_text = ef_add_section(&ef, ".text", SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR, 0, 0, 1, 0);
   ef.shn_shstrtab = ef_add_section(&ef, ".shstrtab", SHT_STRTAB, 0, 0, 0, 1, 0);
   ehdr->e_shstrndx = ef.shn_shstrtab;
   ef.shn_strtab = ef_add_section(&ef, ".strtab", SHT_STRTAB, 0, 0, 0, 1, 0);
   // the sh_info field will be set in ef_freeze once we know all the Elf32_Sym entries
   ef.shn_symtab = ef_add_section(&ef, ".symtab", SHT_SYMTAB, 0, ef.shn_strtab, 0, 4, sizeof(Elf32_Sym));
+  ef.shn_reltext = ef_add_section(&ef, ".rel.text", SHT_REL, SHF_INFO_LINK, ef.shn_symtab, ef.shn_text, 4, sizeof(Elf32_Rel));
   return ef;
 }
 
 /*
  * Value represents offset to the section for function symbols.
+ *
+ * Return the index of the newly added Elf32_Sym
  */
-void ef_add_symbol(struct elf_file* ef, const char *name, int shn, int value, int size, int bind, int type) {
+int ef_add_symbol(struct elf_file* ef, const char *name, int shn, int value, int size, int bind, int type) {
   int name_idx = str_concat(&ef->strtab, name);
 
   Elf32_Sym sym;
@@ -121,6 +129,7 @@ void ef_add_symbol(struct elf_file* ef, const char *name, int shn, int value, in
   sym.st_other = 0; // default visibility
   sym.st_shndx = shn;
   vec_append(&ef->symtab, &sym);
+  return ef->symtab.len - 1;
 }
 
 /*
@@ -134,7 +143,7 @@ static int ef_place_section(struct elf_file* ef, Elf32_Shdr* sh, int off) {
   assert(align > 0);
   off = make_align(off, align);
   sh->sh_offset = off;
-  assert(sh->sh_size > 0);
+  assert(sh->sh_size >= 0);
   return off + sh->sh_size;
 }
 
@@ -160,7 +169,6 @@ static void ef_freeze(struct elf_file* ef) {
   Elf32_Shdr* symtab_shdr = vec_get_item(&ef->shtab, ef->shn_symtab);
   symtab_shdr->sh_size = ef->symtab.len * ef->symtab.itemsize;
   next_off = ef_place_section(ef, symtab_shdr, next_off);
-  // TODO: sort the symbols to make sure local symbols precede global/weak symbols
   {
     int i;
     for (i = 0; i < ef->symtab.len; ++i) {
@@ -170,12 +178,21 @@ static void ef_freeze(struct elf_file* ef) {
       }
     }
     symtab_shdr->sh_info = i;
+    for (; i < ef->symtab.len; ++i) {
+      Elf32_Sym *sym = vec_get_item(&ef->symtab, i);
+      CHECK(ELF32_ST_BIND(sym->st_info) != STB_LOCAL, "Local symbol should be placed before global/weak symbols");
+    }
   }
 
   // shstrtab
   Elf32_Shdr* shstrtab_shdr = vec_get_item(&ef->shtab, ef->shn_shstrtab);
   shstrtab_shdr->sh_size = ef->shstrtab.len;
   next_off = ef_place_section(ef, shstrtab_shdr, next_off);
+
+  // .rel.text
+  Elf32_Shdr* reltext_shdr = vec_get_item(&ef->shtab, ef->shn_reltext);
+  reltext_shdr->sh_size = ef->reltext.len * ef->reltext.itemsize;
+  next_off = ef_place_section(ef, reltext_shdr, next_off);
 
   // now we know where the section header table should go
   next_off = make_align(next_off, 16); // force 16 bytes alignment for the section header table
@@ -191,6 +208,38 @@ static void ef_write_section(FILE* fp, Elf32_Shdr* sh, void *data) {
 static void ef_write_shtab(struct elf_file* ef, FILE* fp) {
   fseek(fp, ef->ehdr.e_shoff, SEEK_SET);
   fwrite(ef->shtab.data, sizeof(Elf32_Shdr), ef->shtab.len, fp);
+}
+
+static void ef_add_symbol_from_label_metadata(struct elf_file* ef, const char* name, struct label_metadata* md) {
+  int off = md->off;
+  int shn = ef->shn_text; // TODO don't hardcode section to be .text
+  int size = md->size;
+  int bind = md->bind;
+  int type = md->type;
+  ef_add_symbol(ef, name, shn, off, size, bind, type);
+}
+
+/*
+ * Perform 2 passes to ut local symbols before global/weak symbols
+ */
+static void ef_add_symbols_from_labels(struct elf_file* ef, struct asctx* ctx) {
+  asctx_dump_labels(ctx);
+  DICT_FOREACH(&ctx->label2idx, entry) {
+    assert(entry->key);
+    const char* name = entry->key;
+    struct label_metadata* md = vec_get_item(&ctx->labelmd_list, entry->val);
+    if (md->bind == STB_LOCAL) {
+      ef_add_symbol_from_label_metadata(ef, name, md);
+    }
+  }
+  DICT_FOREACH(&ctx->label2idx, entry) {
+    assert(entry->key);
+    const char* name = entry->key;
+    struct label_metadata* md = vec_get_item(&ctx->labelmd_list, entry->val);
+    if (md->bind != STB_LOCAL) {
+      ef_add_symbol_from_label_metadata(ef, name, md);
+    }
+  }
 }
 
 /*
@@ -229,8 +278,67 @@ static void ef_write(struct elf_file* ef, const char* path) {
   Elf32_Shdr* shstrtab_shdr = vec_get_item(&ef->shtab, ef->shn_shstrtab);
   ef_write_section(fp, shstrtab_shdr, ef->shstrtab.buf);
 
+  // reltext
+  Elf32_Shdr* reltext_shdr = vec_get_item(&ef->shtab, ef->shn_reltext);
+  ef_write_section(fp, reltext_shdr, ef->reltext.data);
+
   ef_write_shtab(ef, fp);
   fclose(fp);
+}
+
+void ef_dump_syms(struct elf_file* ef) {
+  printf("The file contains %d symbols:\n", ef->symtab.len);
+  VEC_FOREACH(&ef->symtab, Elf32_Sym, esymptr) {
+    const char* ename = ef->strtab.buf + esymptr->st_name;
+    printf(" - name '%s'\n", ename);
+  }
+}
+
+/*
+ * If the symbol is not found, create an undefined symbol.
+ *
+ * Return the symbol index.
+ */
+int ef_get_or_create_symidx(struct elf_file* ef, const char* name) {
+  // TODO: imporve the perf by avoiding linear scan
+  int symidx = -1;
+  int i = 0;
+  VEC_FOREACH(&ef->symtab, Elf32_Sym, esymptr) {
+    const char* ename = ef->strtab.buf + esymptr->st_name;
+    if (strcmp(name, ename) == 0) {
+      symidx = i;
+      break;
+    }
+    ++i;
+  }
+  if (symidx < 0) {
+    symidx = ef_add_symbol(ef, name, SHN_UNDEF, 0, 0, STB_GLOBAL, STT_NOTYPE);
+  }
+  return symidx;
+}
+
+/*
+ * TODO: for relocation that can be resolved right away (e.g. entries for jcc)
+ * don't create a Elf32_Rel entry in the ELF file.
+ */
+static void ef_handle_relocs(struct elf_file* ef, struct asctx* ctx) {
+  asctx_dump_relocs(ctx);
+  VEC_FOREACH(&ctx->rel_list, struct as_rel_s, relptr) {
+    Elf32_Rel elf_rel;
+    const char* symname = lenstrdup(relptr->sym, relptr->symlen);
+    int elf_rel_sym = ef_get_or_create_symidx(ef, symname);
+    free((void*) symname);
+    int elf_rel_reltype = relptr->rel_type;
+
+    // TODO: have a macro to handle this
+    elf_rel.r_info = ((elf_rel_sym << 8) | elf_rel_reltype);
+    elf_rel.r_offset = relptr->offset;
+    vec_append(&ef->reltext, &elf_rel);
+
+    // assign addend to the double-word that will be patched in future
+    // TODO: here we assum we are relocating the text section
+    *(uint32_t*) (ef->code.buf + elf_rel.r_offset) = relptr->addend;
+  }
 }
 
 void ef_free(struct elf_file* ef) {
@@ -239,4 +347,5 @@ void ef_free(struct elf_file* ef) {
   str_free(&ef->code);
   str_free(&ef->strtab);
   vec_free(&ef->symtab);
+  vec_free(&ef->reltext);
 }

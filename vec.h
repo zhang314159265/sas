@@ -1,5 +1,13 @@
 #pragma once
 
+#include "check.h"
+
+// TODO: how to handle the case that the body use a variable having the same
+// name as the indicator variable?
+#define VEC_FOREACH(vec_ptr, item_type, item_ptr) \
+  item_type* item_ptr = NULL; \
+  for (int __i = 0; __i < (vec_ptr)->len && (item_ptr = vec_get_item(vec_ptr, __i)); ++__i)
+
 struct vec {
   int itemsize;
   int capacity; // in number of item
@@ -26,7 +34,7 @@ static inline void vec_append(struct vec* vec, void *itemptr) {
 }
 
 static inline void* vec_get_item(struct vec* vec, int idx) {
-  assert(idx >= 0 && idx < vec->len);
+  CHECK(idx >= 0 && idx < vec->len, "vec index out of range: index %d, size %d", idx, vec->len);
   return vec->data + idx * vec->itemsize;
 }
 

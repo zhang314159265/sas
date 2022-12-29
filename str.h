@@ -46,16 +46,19 @@ static inline void str_nappend(struct str* pstr, int n, char ch) {
   }
 }
 
-/*
- * Concat an cstr (with training '\0') and return the size before concating.
- */
-static int str_concat(struct str* str, const char* extra) {
+static int str_lenconcat(struct str* str, const char* extra, int n) {
   int ret = str->len;
-  int n = strlen(extra) + 1;
   for (int i = 0; i < n; ++i) {
     str_append(str, extra[i]);
   }
   return ret;
+}
+
+/*
+ * Concat an cstr (with training '\0') and return the size before concating.
+ */
+static int str_concat(struct str* str, const char* extra) {
+  return str_lenconcat(str, extra, strlen(extra) + 1);
 }
 
 static inline void str_hexdump(struct str* pstr) {

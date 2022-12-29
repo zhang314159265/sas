@@ -39,11 +39,10 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 
 # Scratch
 
-- TODO: refactor `jit_runner.h`
+- WIP: convert examples/hello-libc.s to elf
+  - TODO: add tests in examples/ to make sure sas can replace gas
 
-- WIP: convert hello-libc.s to elf
-
-- TODO: use relocation to handle label
+- TODO: use relocation to handle label patch
 
 - TODO: support all the assembly instructions in `test_jit_*`
   - `mersenne_number`

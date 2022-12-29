@@ -4,9 +4,15 @@
 #include <stdint.h>
 #include <string.h>
 #include "util.h"
+#include "check.h"
 
 // TODO: key can not be 'const char*' and value can only be int so far.
 // generalize if needed
+
+#define DICT_FOREACH(dict_ptr, entry_ptr) \
+  for (struct dict_entry* entry_ptr = dict_begin(dict_ptr); \
+       entry_ptr != dict_end(dict_ptr); \
+       entry_ptr = dict_next(dict_ptr, entry_ptr))
 
 struct dict_entry {
   const char* key;
@@ -20,6 +26,7 @@ struct dict {
 };
 
 struct dict_entry* _dict_find(struct dict_entry* entries, int capacity, const char* key);
+static struct dict_entry* dict_end(struct dict* dict);
 
 struct dict dict_create() {
   struct dict dict;
@@ -76,6 +83,9 @@ struct dict_entry* _dict_find(struct dict_entry* entries, int capacity, const ch
   return &(entries[h]);
 }
 
+/*
+ * Return the number of entries created.
+ */
 int dict_put(struct dict* dict, const char* key, int val) {
   if ((dict->size << 1) >= dict->capacity) {
     dict_expand(dict);
@@ -109,4 +119,28 @@ void dict_free(struct dict* dict) {
     }
   }
   free(dict->entries);
+}
+
+struct dict_entry* _dict_skip_unused(struct dict* dict, struct dict_entry* cur) {
+  while (cur != dict_end(dict) && !cur->key) {
+    ++cur;
+  }
+  return cur;
+}
+
+/*
+ * If the dict is not empty, return the pointer to the first entry, otherwise
+ * return end.
+ */
+static struct dict_entry* dict_begin(struct dict* dict) {
+  return _dict_skip_unused(dict, dict->entries);
+}
+
+static struct dict_entry* dict_next(struct dict* dict, struct dict_entry* cur) {
+  assert(cur != dict_end(dict));
+  return _dict_skip_unused(dict, cur + 1);
+}
+
+static struct dict_entry* dict_end(struct dict* dict) {
+  return dict->entries + dict->capacity;
 }
