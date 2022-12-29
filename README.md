@@ -39,6 +39,10 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 
 # Scratch
 
+- WIP: convert hello-libc.s to elf
+
+- TODO: use relocation to handle label
+
 - TODO: support all the assembly instructions in `test_jit_*`
   - `mersenne_number`
   - `harmonic_number`

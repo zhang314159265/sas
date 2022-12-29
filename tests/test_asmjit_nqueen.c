@@ -237,7 +237,7 @@ struct str bt() { // step, N
     ret
     # c3
   )";
-  struct str bin_code = parse_text_code_simple("bt", text_code);
+  struct str bin_code = parse_text_code("bt", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -303,7 +303,7 @@ struct str nqueen() {
     ret
     # c3
   )";
-  struct str bin_code = parse_text_code_simple("nqueen", text_code);
+  struct str bin_code = parse_text_code("nqueen", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -364,7 +364,7 @@ int main(void) {
     ret
     # c3
   )";
-  struct str bin_code = parse_text_code_simple(NULL, text_code);
+  struct str bin_code = parse_text_code(NULL, text_code);
   jit_run(&bin_code);
   str_free(&bin_code);
   str_free(&nqueen_bin_code);

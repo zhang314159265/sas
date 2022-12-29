@@ -6,8 +6,7 @@ int main(void) {
   const char* text_code = sum_text_code;
   sym_register("STR_ADDR", "sum is %d\n");
   struct asctx ctx = asctx_create();
-  const char* argnames[] = { NULL};
-  _parse_text_code(&ctx, NULL, text_code, argnames, NULL);
+  _parse_text_code(&ctx, NULL, text_code);
 
   struct dict* label2off = &ctx.label2off;
   assert(label2off->size == 2);

@@ -10,7 +10,9 @@ factoring sum calc24 harmonic_number mersenne_number primesieve nqueen:
 	objdump -d ./a.out > /tmp/$@.fullasm
 
 hello-libc:
-	gcc -m32 -static hello-libc.s
+	gcc -m32 -c hello-libc.s -static -o /tmp/hello-libc.o
+	objdump -dr /tmp/hello-libc.o > /tmp/hello-libc.asm
+	gcc -m32 -static /tmp/hello-libc.o
 	objdump -d ./a.out > /tmp/hello-libc.fullasm
 	./a.out
 

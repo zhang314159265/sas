@@ -70,7 +70,7 @@ const char *gettoken(const char *cur, const char *end) {
  * - we can patch the code with runtime symbols. This simulates relocation in some sense.
  *
  */
-void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, const char *argnames[], int argvals[]) {
+void parse_text_code_line(struct asctx* ctx, const char* line, int linelen) {
 	#if 0
 	printf("Line: %.*s\n", linelen, line);
 	#endif
@@ -115,17 +115,7 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
 		} else if (*curptr == '<') {
 			assert(*(tokenend - 1) == '>');
       int len = tokenend - curptr;
-      if (!memchr(curptr, ' ', tokenend - curptr)) {
-        // identify as a symbol if no space found
-  			int idx = linear_search(argnames, curptr + 1, tokenend - curptr - 2);
-  			assert(idx >= 0 && "symbol not found");
-  			int val = argvals[idx];
-  			// only support 32 bit values so far and assumes little endian
-  			for (int i = 0; i < 4; ++i) {
-  				str_append(&ctx->bin_code, val & 0xff);
-  				val >>= 8;
-  			}
-      } else if (len >= 5 && memcmp(curptr, "<REL ", 5) == 0) {
+      if (len >= 5 && memcmp(curptr, "<REL ", 5) == 0) {
         struct as_rel_s rel_entry = rel_parse_str(ctx->bin_code.len, curptr + 1, tokenend - 1);
         vec_append(&ctx->rel_list, &rel_entry);
         // rel_entry_dump(rel_entry);
@@ -216,7 +206,7 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen, cons
 	}
 }
 
-void _parse_text_code(struct asctx* ctx, const char* func_name, const char* text_code, const char* argnames[], int argvals[]) {
+void _parse_text_code(struct asctx* ctx, const char* func_name, const char* text_code) {
 	const char *cur = text_code;
 	const char *next;
 	while (*cur) {
@@ -224,7 +214,7 @@ void _parse_text_code(struct asctx* ctx, const char* func_name, const char* text
 		while (*next && *next != '\n') {
 			++next;
 		}
-    parse_text_code_line(ctx, cur, next - cur, argnames, argvals);
+    parse_text_code_line(ctx, cur, next - cur);
 		if (*next == '\n') {
 			++next;
 		}
@@ -253,16 +243,11 @@ void _parse_text_code(struct asctx* ctx, const char* func_name, const char* text
 /*
  * Each text code represents a function.
  */
-struct str parse_text_code(const char* func_name, const char *text_code, const char* argnames[], int argvals[]) {
+struct str parse_text_code(const char* func_name, const char *text_code) {
   struct asctx ctx = asctx_create();
-  _parse_text_code(&ctx, func_name, text_code, argnames, argvals);
+  _parse_text_code(&ctx, func_name, text_code);
 
   struct str bin_code = str_move(&ctx.bin_code);
   asctx_free(&ctx);
 	return bin_code;
-}
-
-struct str parse_text_code_simple(const char* func_name, const char *text_code) {
-  const char* argnames[] = { NULL};
-  return parse_text_code(func_name, text_code, argnames, NULL);
 }

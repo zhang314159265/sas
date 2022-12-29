@@ -70,7 +70,7 @@ struct str harmonic() { // int n
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("harmonic", text_code);
+  struct str bin_code = parse_text_code("harmonic", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -246,7 +246,7 @@ int main(void) {
   sym_register("FAIL_MSG", "FAIL");
   sym_register("PASS_MSG", "PASS");
   struct str harmonic_bin_code = harmonic();
-  struct str bin_code = parse_text_code_simple(NULL, text_code);
+  struct str bin_code = parse_text_code(NULL, text_code);
   jit_run(&bin_code);
   str_free(&bin_code);
   str_free(&harmonic_bin_code);

@@ -156,7 +156,7 @@ struct str solve() { // int nums[4]
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("solve", text_code);
+  struct str bin_code = parse_text_code("solve", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -262,7 +262,7 @@ struct str empty_line() {
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("empty_line", text_code);
+  struct str bin_code = parse_text_code("empty_line", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -293,7 +293,7 @@ struct str usage() {
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("usage", text_code);
+  struct str bin_code = parse_text_code("usage", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -558,7 +558,7 @@ struct str parse_input() { // char *line, int nums[4]
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("parse_input", text_code);
+  struct str bin_code = parse_text_code("parse_input", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -1120,7 +1120,7 @@ struct str bt() { // double* evalstk, int evalstksize, int nums[4], int nums_pos
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("bt", text_code);
+  struct str bin_code = parse_text_code("bt", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -1517,7 +1517,7 @@ struct str print_solution() {
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("print_solution", text_code);
+  struct str bin_code = parse_text_code("print_solution", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -1572,7 +1572,7 @@ struct str swap() {
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("swap", text_code);
+  struct str bin_code = parse_text_code("swap", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -1684,7 +1684,7 @@ struct str apply_op() {
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("apply_op", text_code);
+  struct str bin_code = parse_text_code("apply_op", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -1844,7 +1844,7 @@ int main(void) {
   struct str empty_line_bin_code = empty_line();
   struct str usage_bin_code = usage();
   struct str parse_input_bin_code = parse_input();
-  struct str bin_code = parse_text_code_simple(NULL, text_code);
+  struct str bin_code = parse_text_code(NULL, text_code);
   jit_run(&bin_code);
   str_free(&bin_code);
   str_free(&parse_input_bin_code);

@@ -251,7 +251,7 @@ int main(void) {
   sym_register("CNT_FMT_STR", "Found %d primes less than %d\n");
   sym_register("VAL_FMT_STR", " %d");
 
-  struct str bin_code = parse_text_code_simple(NULL, text_code);
+  struct str bin_code = parse_text_code(NULL, text_code);
   jit_run(&bin_code);
   str_free(&bin_code);
   printf("bye\n");

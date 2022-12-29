@@ -18,7 +18,7 @@ int main(void) {
     ret
     # c3 
   )";
-	struct str bin_code = parse_text_code_simple(NULL, text_code);
+	struct str bin_code = parse_text_code(NULL, text_code);
   #if 0 // manual relocating
   // fill in printf address offset
   *(uint32_t*) (bin_code.buf + 6) = (int) printf - ((int) bin_code.buf + 10);

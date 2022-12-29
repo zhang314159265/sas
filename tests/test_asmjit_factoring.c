@@ -135,7 +135,7 @@ l_loop_check:
 		ret
 		# c3
 	)";
-	struct str bin_code = parse_text_code_simple(NULL, text_code);
+	struct str bin_code = parse_text_code(NULL, text_code);
 	jit_run(&bin_code);
 	str_free(&bin_code);
 	printf("bye\n");

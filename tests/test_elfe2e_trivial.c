@@ -4,7 +4,7 @@
 
 int main(void) {
   struct elf_file ef = ef_create();
-  ef.code = parse_text_code_simple(NULL, R"(
+  ef.code = parse_text_code(NULL, R"(
     mov $88, %eax
     ret
   )");

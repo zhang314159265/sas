@@ -2,12 +2,8 @@
 #include <stdio.h>
 
 int main(void) {
-	const char* MAIN_MSG = "Factoring %d into:";
-	const char* FACTOR_MSG = " %d";
-	// const char* NL_MSG = "\n";
-
-	const char* argnames[] = {"MAIN_MSG", "FACTOR_MSG", NULL};
-	int argvals[] = { (int) MAIN_MSG, (int) FACTOR_MSG,};
+  sym_register("MAIN_MSG", "Factoring %d into:");
+  sym_register("FACTOR_MSG", " %d");
 	const char* text_code = R"(
 	  # push %ebp
 		55
@@ -31,7 +27,7 @@ int main(void) {
 		ff 75 f4
 
 		# push $MAIN_MSG
-		68 <MAIN_MSG>
+		68 <REL R_386_32 MAIN_MSG 0>
 
 		# call printf
 		# e8 00 00 00 00
@@ -77,7 +73,7 @@ int main(void) {
 		ff 75 f0
 
 		# push FACTOR_MSG
-		68 <FACTOR_MSG>
+		68 <REL R_386_32 FACTOR_MSG 0>
 
 		# call printf
 		# e8 00 00 00 00
@@ -132,7 +128,7 @@ int main(void) {
 		# ret
 		c3
 	)";
-	struct str bin_code = parse_text_code(NULL, text_code, argnames, argvals);
+	struct str bin_code = parse_text_code(NULL, text_code);
 	jit_run(&bin_code);
 	str_free(&bin_code);
 	printf("bye\n");

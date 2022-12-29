@@ -64,7 +64,7 @@ struct str is_prime() { // int n
     # ret
     c3
   )";
-  struct str bin_code = parse_text_code_simple("is_prime", text_code);
+  struct str bin_code = parse_text_code("is_prime", text_code);
   jit_make_exec(&bin_code);
   return bin_code;
 }
@@ -178,7 +178,7 @@ int main(void) {
   )";
   sym_register("SOL_MSG", "The first non prime mersene number with prime power is: 2**%d - 1\n");
   struct str is_prime_bin_code = is_prime();
-  struct str bin_code = parse_text_code_simple(NULL, text_code);
+  struct str bin_code = parse_text_code(NULL, text_code);
   jit_run(&bin_code);
   str_free(&is_prime_bin_code);
   str_free(&bin_code);
