@@ -26,6 +26,7 @@ typedef uint16_t Elf32_Section;
 #define SHT_REL 9 /* relocation entries, no addends */
 
 /* legal values for sh_flags (section flags). */
+#define SHF_WRITE (1 << 0) /* writable */
 #define SHF_ALLOC (1 << 1) /* occupies memory during execution */
 #define SHF_EXECINSTR (1 << 2) /* executable */
 #define SHF_INFO_LINK (1 << 6) /* sh_info contains SHT index */

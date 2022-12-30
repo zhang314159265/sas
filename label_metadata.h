@@ -1,5 +1,7 @@
 #pragma once
 
+#include "section.h"
+
 /*
  * The assembly need to maintain metadatas for each label:
  * - offset
@@ -7,13 +9,13 @@
  * - type: function, object
  * - size: number of bytes for a function
  * etc.
- * TODO: record the section this label is associated with
  */
 struct label_metadata {
   int off;
   int bind;
   int type;
   int size;
+  struct section* section;
 };
 
 static struct label_metadata labelmd_create() {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <stdio.h>
 #include "util.h"
 
 // variable length string
@@ -115,4 +116,14 @@ static int str_check(struct str* pstr, const char* hex) {
   int r = strcasecmp(actual, hex);
   free(actual);
   return r == 0;
+}
+
+static void str_align(struct str* str, int align) {
+  if (align <= 0) {
+    return;
+  }
+  // pad with 0
+  int len = str->len;
+  int newlen = make_align(len, align);
+  str_nappend(str, newlen - len, 0);
 }

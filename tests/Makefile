@@ -73,6 +73,10 @@ test_operand:
 	gcc -I$(SRC_ROOT) test_operand.c $(CFLAGS)
 	./a.out
 
+test_str:
+	gcc -I$(SRC_ROOT) test_str.c $(CFLAGS)
+	./a.out
+
 test_sas:
 	gcc -I$(SRC_ROOT) test_sas.c $(CFLAGS)
 	./a.out

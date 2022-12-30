@@ -20,11 +20,11 @@ int main(int argc, char **argv) {
     parse_text_code_line(&ctx, buf, len);
   }
 
-  str_hexdump(&ctx.bin_code);
+  str_hexdump(asctx_cursec_buf(&ctx));
 
   struct elf_file ef = ef_create();
+  ef_set_shn_in_ctx(&ef, &ctx);
   asctx_resolve_label_patch(&ctx); // TODO handle label patch with relocation
-  ef.code = str_move(&ctx.bin_code);
 
   ef_add_symbols_from_labels(&ef, &ctx);
   ef_dump_syms(&ef);
@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
   // handle relocation
   ef_handle_relocs(&ef, &ctx);
 
-  ef_write(&ef, argv[2]);
+  ef_write(&ef, &ctx, argv[2]);
 
   asctx_free(&ctx);
   fclose(fp);

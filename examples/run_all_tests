@@ -1,13 +1,14 @@
 #!/bin/bash
 
 set -e
+set -o pipefail
 
 cd ./`dirname $0`
 
 # TODO: uncomment this once all are supported
 # all_targets=`make -qp | awk -F ':' '/^[a-zA-Z0-9][^=]*:([^=]|$)/ { split($1, A, / /); for(i in A) print(A[i]); }' | sort -u | grep -v 'all\|Makefile\|^hello$'`
 
-all_targets="hello-libc sum"
+all_targets="hello-libc sum factoring nqueen"
 
 # override all_targets from command line
 if [ $# -ne 0 ]; then

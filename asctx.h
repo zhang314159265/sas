@@ -6,10 +6,11 @@
 #include "str.h"
 #include "check.h"
 #include "label_metadata.h"
+#include "section.h"
 
 struct label_patch_entry {
   const char* label;
-  int off;
+  int off; // assume current section to be the .text
 };
 
 struct asctx {
@@ -18,19 +19,70 @@ struct asctx {
   // TODO: have some datastructure the combine the following 2
   struct dict label2idx;
   struct vec labelmd_list;
-  
-  struct str bin_code;
+
+  #if 0
+  struct str bin_code; // TODO :remove this field and use current_section instead
+  #endif
 
   struct vec label_patch_list; // similar to relocation but use label definition rather than symbol to resolve
+
+  // a table of struct section.
+  // TODO: should we use a dict to speed up search? Or it's fine since the number
+  // of sections is often small.
+  struct vec sectab;
+  // the current section. Point the .text by default
+  struct section* cursec;
+  struct section* textsec;
 };
+
+static struct str* asctx_expect_cursec_buf(struct asctx* ctx, const char *name) {
+  struct section* cursec = ctx->cursec;
+  CHECK(strcmp(cursec->name, name) == 0, "Expect current section to be '%s' but got %s", name, cursec->name);
+  return &ctx->cursec->cont;
+}
+
+static struct str* asctx_cursec_buf(struct asctx* ctx) {
+  return &ctx->cursec->cont;
+}
+
+static int asctx_cursec_buflen(struct asctx* ctx) {
+  return asctx_cursec_buf(ctx)->len;
+}
+
+static void asctx_switch_section(struct asctx* ctx, const char* name) {
+  bool found = 0;
+  VEC_FOREACH(&ctx->sectab, struct section, sptr) {
+    if (strcmp(name, sptr->name) == 0) {
+      found = 1;
+      ctx->cursec = sptr;
+      break;
+    }
+  }
+  // TODO: be able to create the section on the fly
+  assert(found);
+}
 
 static struct asctx asctx_create() {
   struct asctx ctx;
   ctx.rel_list = vec_create(sizeof(struct as_rel_s));
   ctx.label2idx = dict_create();
   ctx.labelmd_list = vec_create(sizeof(struct label_metadata));
+  #if 0
   ctx.bin_code = str_create(256);
+  #endif
   ctx.label_patch_list = vec_create(sizeof(struct label_patch_entry));
+
+  ctx.sectab = vec_create(sizeof(struct section));
+
+  // by default we have a .text section
+  struct section text_section = section_create(".text");
+  vec_append(&ctx.sectab, &text_section);
+  ctx.cursec = vec_get_item(&ctx.sectab, 0);
+  ctx.textsec = ctx.cursec;
+
+  // precreate the data section
+  struct section data_section = section_create(".data");
+  vec_append(&ctx.sectab, &data_section);
   return ctx;
 }
 
@@ -80,6 +132,7 @@ static struct label_metadata* asctx_register_label(struct asctx* ctx, const char
 static void asctx_define_label(struct asctx* ctx, const char* label, int off) {
   struct label_metadata *md = asctx_register_label(ctx, label);
   md->off = off;
+  md->section = ctx->cursec;
 }
 
 static void asctx_resolve_label_patch(struct asctx* ctx) {
@@ -89,7 +142,8 @@ static void asctx_resolve_label_patch(struct asctx* ctx) {
     struct label_metadata* md = vec_get_item(&ctx->labelmd_list, md_idx);
     uint32_t label_off = md->off;
     uint32_t patch_off = patch_entry->off;
-    *(uint32_t*)(ctx->bin_code.buf + patch_off) = label_off - (patch_off + 4);
+
+    *(uint32_t*)(ctx->textsec->cont.buf + patch_off) = label_off - (patch_off + 4);
   }
 }
 
@@ -135,11 +189,18 @@ static void asctx_free(struct asctx* ctx) {
   vec_free(&ctx->rel_list);
   dict_free(&ctx->label2idx);
   vec_free(&ctx->labelmd_list);
+  #if 0
   str_free(&ctx->bin_code);
+  #endif
 
   for (int i = 0; i < ctx->label_patch_list.len; ++i) {
     struct label_patch_entry* item = vec_get_item(&ctx->label_patch_list, i);
     free((void*) item->label);
   }
   vec_free(&ctx->label_patch_list);
+
+  VEC_FOREACH(&ctx->sectab, struct section, sptr) {
+    section_free(sptr);
+  }
+  vec_free(&ctx->sectab);
 }

@@ -5,7 +5,9 @@
 #include "operand.h"
 #include "util.h"
 
+static void emit_i32(struct asctx* ctx, int32_t i32);
 static void emit_opcode(struct asctx* ctx, uint8_t opc);
+static void emit_byte(struct asctx* ctx, uint8_t byte);
 static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand* rm_opd);
 struct dict valid_instr_stem;
 
@@ -124,10 +126,10 @@ static void handle_jmp(struct asctx* ctx, struct operand* o1, int sizesuf, int c
   // Must append the opcode before grabbing the offset to patch.
   if (cc_opcode_off >= 0) {
     // append jcc opcode
-    str_append(&ctx->bin_code, 0x0f);
-    str_append(&ctx->bin_code, 0x80 + cc_opcode_off);
+    emit_byte(ctx, 0x0f);
+    emit_byte(ctx, 0x80 + cc_opcode_off);
   } else {
-    str_append(&ctx->bin_code, 0xe9);
+    emit_byte(ctx, 0xe9);
   }
 
   // TODO: avoid duplicate the following 3 line with handle_call
@@ -141,7 +143,7 @@ static void handle_jmp(struct asctx* ctx, struct operand* o1, int sizesuf, int c
   struct dict_entry* label_entry = dict_lookup(&ctx->label2idx, label);
 
   // TODO: use relocation to handle label
-  uint32_t off = ctx->bin_code.len;
+  uint32_t off = asctx_expect_cursec_buf(ctx, ".text")->len;
   uint32_t val;
   if (label_entry->key) {
     // label already defined
@@ -155,7 +157,7 @@ static void handle_jmp(struct asctx* ctx, struct operand* o1, int sizesuf, int c
     vec_append(&ctx->label_patch_list, &patch_entry);
   }
 
-  str_append_i32(&ctx->bin_code, val);
+  emit_i32(ctx, val);
 }
 
 /*
@@ -187,10 +189,11 @@ static void handle_call(struct asctx* ctx, struct operand* opd, char sizesuf) {
   assert(opd->disp_sym);
   assert(opd->base_regidx < 0 && opd->index_regidx < 0 && opd->log2scale < 0);
   const char* func_name = opd->disp_sym;
-  str_append(&ctx->bin_code, 0xe8);
-  int offset = ctx->bin_code.len;
+  emit_byte(ctx, 0xe8);
+
+  int offset = asctx_cursec_buflen(ctx);
   // addend is stored in the as_rel_s rather than inplace
-  str_append_i32(&ctx->bin_code, 0);
+  emit_i32(ctx, 0);
 
   asctx_add_relocation(ctx, func_name, offset, R_386_PC32);
 }
@@ -199,9 +202,9 @@ static void handle_call(struct asctx* ctx, struct operand* opd, char sizesuf) {
 static void emit_disp32(struct asctx* ctx, struct operand* opd) {
   assert(opd->type == MEM);
   if (opd->disp_sym) {
-    asctx_add_relocation(ctx, opd->disp_sym, ctx->bin_code.len, R_386_32);
+    asctx_add_relocation(ctx, opd->disp_sym, asctx_expect_cursec_buf(ctx, ".text")->len, R_386_32);
   }
-  str_append_i32(&ctx->bin_code, opd->disp);
+  emit_i32(ctx, opd->disp);
 }
 
 enum DISP_STATE {
@@ -219,7 +222,7 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   if (is_gpr(rm_opd)) {
     // ModR/M byte:
     uint8_t mod = 0xc0 | (reg_opext << 3) | (rm_opd->regidx);
-    str_append(&ctx->bin_code, mod);
+    emit_byte(ctx, mod);
     return;
   }
 
@@ -237,7 +240,7 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
   bool has_base = mem_opd.base_regidx >= 0;
   if (!has_base && !has_sib) {
     // only displacement
-    str_append(&ctx->bin_code, 0x00 | (reg_opext << 3) | 5);
+    emit_byte(ctx, 0x00 | (reg_opext << 3) | 5);
     emit_disp32(ctx, &mem_opd);
     return;
   }
@@ -265,13 +268,13 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
 
   if (mem_opd.disp == 0 || mem_opd.base_regidx < 0) {
     // mod 00
-    str_append(&ctx->bin_code, 0x00 | (reg_opext << 3) | rmbits);
+    emit_byte(ctx, 0x00 | (reg_opext << 3) | rmbits);
   } else if (is_int8(mem_opd.disp)) {
     // mod 01
-    str_append(&ctx->bin_code, 0x40 | (reg_opext << 3) | rmbits);
+    emit_byte(ctx, 0x40 | (reg_opext << 3) | rmbits);
   } else {
     // mod 10
-    str_append(&ctx->bin_code, 0x80 | (reg_opext << 3) | rmbits);
+    emit_byte(ctx, 0x80 | (reg_opext << 3) | rmbits);
   }
 
   if (has_sib) {
@@ -279,14 +282,14 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
     // log2scale -- index_reg -- base_reg
     assert(mem_opd.index_regidx != 4);
     assert(mem_opd.base_regidx != 5);
-    str_append(&ctx->bin_code, (mem_opd.log2scale << 6) | (mem_opd.index_regidx << 3) | base_regidx);
+    emit_byte(ctx, (mem_opd.log2scale << 6) | (mem_opd.index_regidx << 3) | base_regidx);
   }
 
   // displacement
   if (mem_opd.disp == 0 && has_base) {
   } else if (is_int8(mem_opd.disp) && has_base) {
     // emit the disp8
-    str_append(&ctx->bin_code, (int8_t) mem_opd.disp);
+    emit_byte(ctx, (int8_t) mem_opd.disp);
   } else {
     // emit the disp32
     emit_disp32(ctx, &mem_opd);
@@ -298,27 +301,41 @@ static void emit_modrm_sib_disp(struct asctx* ctx, int reg_opext, struct operand
  */
 static void emit_imm32(struct asctx* ctx, struct operand* opd) {
   assert(opd->type == IMM);
-  str_append_i32(&ctx->bin_code, opd->imm);
+  emit_i32(ctx, opd->imm);
   if (opd->imm_sym) {
     // need relocation
-    asctx_add_relocation(ctx, opd->imm_sym, ctx->bin_code.len - 4, R_386_32);
+    asctx_add_relocation(ctx, opd->imm_sym, asctx_cursec_buflen(ctx) - 4, R_386_32);
   }
 }
 
 static void emit_opcode(struct asctx* ctx, uint8_t opc) {
-  str_append(&ctx->bin_code, opc);
+  emit_byte(ctx, opc);
+}
+
+static void emit_byte(struct asctx* ctx, uint8_t byte) {
+  str_append(asctx_cursec_buf(ctx), byte);
+}
+
+static void emit_nbytes(struct asctx* ctx, int cnt, uint8_t byte) {
+  for (int i = 0; i < cnt; ++i) {
+    emit_byte(ctx, byte);
+  }
+}
+
+static void emit_i32(struct asctx* ctx, int32_t i32) {
+  str_append_i32(asctx_cursec_buf(ctx), i32);
 }
 
 static void handle_loadstore_i32(struct asctx* ctx, struct operand* o1, struct operand* o2) {
   struct operand reg_opd, mem_opd;
   if (is_mem(o1)) {
     // load
-    str_append(&ctx->bin_code, 0x8b);
+    emit_byte(ctx, 0x8b);
     reg_opd = *o2;
     mem_opd = *o1;
   } else {
     // store
-    str_append(&ctx->bin_code, 0x89);
+    emit_byte(ctx, 0x89);
     reg_opd = *o1;
     mem_opd = *o2;
   }
@@ -349,12 +366,12 @@ static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2
     // sas uniformly encode this as a store.
     // When interpreted as a store, gpr32_0 will be encoded in reg bits in ModR/M byte,
     // while gpr32_1 will be encoded in r/m bits in ModR/M byte.
-    str_append(&ctx->bin_code, 0x89);
+    emit_byte(ctx, 0x89);
     emit_modrm_sib_disp(ctx, o1->regidx, o2);
   } else if (is_imm(o1) && is_gpr32(o2)) {
     // move imm to gpr32
     // always encode imm as imm32 for simplicity
-    str_append(&ctx->bin_code, 0xb8 + o2->regidx);
+    emit_byte(ctx, 0xb8 + o2->regidx);
     emit_imm32(ctx, o1);
   } else if (is_mem(o1) && is_gpr32(o2)) {
     handle_load_i32(ctx, o1, o2);
@@ -362,14 +379,14 @@ static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2
     handle_store_i32(ctx, o1, o2);
   } else if (is_imm(o1) && is_mem(o2) && sizesuf == 'l') {
     // mov imm to r/m32
-    str_append(&ctx->bin_code, 0xc7);
+    emit_byte(ctx, 0xc7);
     emit_modrm_sib_disp(ctx, 0, o2); // emit modrm, sib, displacement
-    str_append_i32(&ctx->bin_code, o1->imm);
+    emit_i32(ctx, o1->imm);
   } else if (is_imm(o1) && is_mem(o2) && sizesuf == 'b') {
     // mov imm to r/m8
     emit_opcode(ctx, 0xc6);
     emit_modrm_sib_disp(ctx, 0, o2);
-    str_append(&ctx->bin_code, o1->imm);
+    emit_byte(ctx, o1->imm);
   } else {
     printf("handle_mov %s %s\n", o1->repr, o2->repr);
     assert(false && "handle mov");
@@ -378,13 +395,13 @@ static void handle_mov(struct asctx* ctx, struct operand* o1, struct operand* o2
 
 static void handle_push(struct asctx* ctx, struct operand* opd, char sizesuf) {
   if (is_gpr32(opd)) {
-    str_append(&ctx->bin_code, 0x50 + opd->regidx);
+    emit_byte(ctx, 0x50 + opd->regidx);
   } else if (is_mem(opd)) { // imply 32 bit
-    str_append(&ctx->bin_code, 0xff);
+    emit_byte(ctx, 0xff);
     emit_modrm_sib_disp(ctx, 6, opd);
   } else if (is_imm(opd)) {
     // TODO: we could use less bytes for imm8
-    str_append(&ctx->bin_code, 0x68);
+    emit_byte(ctx, 0x68);
     emit_imm32(ctx, opd);
   } else {
     assert(false && "handle_push");
@@ -393,7 +410,7 @@ static void handle_push(struct asctx* ctx, struct operand* opd, char sizesuf) {
 
 static void handle_pop(struct asctx* ctx, struct operand* opd, char sizesuf) {
   if (is_gpr32(opd)) {
-    str_append(&ctx->bin_code, 0x58 + opd->regidx);
+    emit_byte(ctx, 0x58 + opd->regidx);
   } else {
     assert(false && "handle_pop");
   }
@@ -415,8 +432,8 @@ static void handle_int(struct asctx* ctx, struct operand* opd, char sizesuf) {
   assert(is_imm(opd));
   assert(!opd->imm_sym);
   assert(opd->imm >= 0 && opd->imm <= 255);
-  str_append(&ctx->bin_code, 0xcd); 
-  str_append(&ctx->bin_code, (uint8_t) opd->imm);
+  emit_byte(ctx, 0xcd); 
+  emit_byte(ctx, (uint8_t) opd->imm);
 }
 
 static void handle_sub(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
@@ -424,9 +441,9 @@ static void handle_sub(struct asctx* ctx, struct operand *o1, struct operand *o2
     emit_opcode(ctx, 0x2b);
     emit_modrm_sib_disp(ctx, o2->regidx, o1);
   } else if (is_imm8(o1) && is_gpr32(o2)) {
-    str_append(&ctx->bin_code, 0x83);
+    emit_byte(ctx, 0x83);
     emit_modrm_sib_disp(ctx, 5, o2);
-    str_append(&ctx->bin_code, (int8_t) o1->imm);
+    emit_byte(ctx, (int8_t) o1->imm);
   } else {
     assert(false && "handle_sub");
   }
@@ -434,12 +451,12 @@ static void handle_sub(struct asctx* ctx, struct operand *o1, struct operand *o2
 
 static void handle_add(struct asctx* ctx, struct operand *o1, struct operand *o2, char sizesuf) {
   if (is_gpr32(o1) && is_rm32(o2)) {
-    str_append(&ctx->bin_code, 0x01);
+    emit_byte(ctx, 0x01);
     emit_modrm_sib_disp(ctx, o1->regidx, o2);
   } else if (is_imm8(o1) && is_rm32_check(o2, sizesuf)) {
-    str_append(&ctx->bin_code, 0x83);
+    emit_byte(ctx, 0x83);
     emit_modrm_sib_disp(ctx, 0, o2);
-    str_append(&ctx->bin_code, (int8_t) o1->imm);
+    emit_byte(ctx, (int8_t) o1->imm);
   } else {
     assert(false && "handle_add");
   }
@@ -451,9 +468,9 @@ static void handle_cmp(struct asctx* ctx, struct operand *o1, struct operand *o2
     emit_opcode(ctx, 0x3b);
     emit_modrm_sib_disp(ctx, o2->regidx, o1);
   } else if (is_imm8(o1) && is_rm32_check(o2, sizesuf)) {
-    str_append(&ctx->bin_code, 0x83);
+    emit_byte(ctx, 0x83);
     emit_modrm_sib_disp(ctx, 7, o2);
-    str_append(&ctx->bin_code, (int8_t) o1->imm);
+    emit_byte(ctx, (int8_t) o1->imm);
   } else {
     assert(false && "handle_cmp");
   }
@@ -538,13 +555,13 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       handle_cmp(ctx, o1, o2, sizesuf);
       break;
     case OPC_leave:
-      str_append(&ctx->bin_code, 0xc9);
+      emit_byte(ctx, 0xc9);
       break;
     case OPC_ret:
-      str_append(&ctx->bin_code, 0xc3);
+      emit_byte(ctx, 0xc3);
       break;
     case OPC_nop:
-      str_append(&ctx->bin_code, 0x90);
+      emit_byte(ctx, 0x90);
       break;
     case OPC_int:
       handle_int(ctx, o1, sizesuf);

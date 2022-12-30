@@ -11,20 +11,53 @@
 /* data structures for reading and writing elf files */
 struct elf_file {
   Elf32_Ehdr ehdr;
-  struct vec shtab;
-  struct str shstrtab;
+  struct vec shtab; // section header table. Contains Elf32_Shdr
 
-  struct str code;
+  struct str shstrtab;
   struct str strtab;
   struct vec symtab;
   struct vec reltext;
 
+  // the content of .text, .data will be from the asctx->sectab
   uint16_t shn_text;
+  uint16_t shn_data;
+
   uint16_t shn_strtab;
   uint16_t shn_symtab;
   uint16_t shn_shstrtab;
   uint16_t shn_reltext;
 };
+
+/*
+ * Fatal if there is no section with the name found.
+ */
+static int ef_get_shn_by_name(struct elf_file *ef, const char* name) {
+  int idx = 0;
+  VEC_FOREACH(&ef->shtab, Elf32_Shdr, shdr) {
+    if (strcmp(ef->shstrtab.buf + shdr->sh_name, name) == 0) {
+      return idx;
+    }
+    ++idx;
+  }
+  FAIL("section name not found %s", name);
+}
+
+/*
+ * After parsing the whole assembly file, we know what are all the sections
+ * mentioned in the file. Create the Elf32_Shdr in elf_file if it does not
+ * exist yet. And then assign the section header number to the 'struct section'
+ * in the asctx.
+ *
+ * The section header number in asctx will be used to create Elf32_Sym from labels.
+ */
+void ef_set_shn_in_ctx(struct elf_file* ef, struct asctx* ctx) {
+  // TODO: this functions assumes all the section headers are preexist already.
+  // we can do this for commonly known section names but may fail for customized
+  // section names. Be able to create Elf32_Shdr on the fly.
+  VEC_FOREACH(&ctx->sectab, struct section, sec) {
+    sec->shn = ef_get_shn_by_name(ef, sec->name);
+  }
+}
 
 /*
  * Add a section header before all it's fields can be decided (e.g. size/offset) so
@@ -93,7 +126,6 @@ struct elf_file ef_create() {
   // add a 0 at the beginning so index 0 represents an empty string
   // (this happen for the null section 0)
   str_append(&ef.shstrtab, 0);
-  ef.code = str_create(0);
   ef.strtab = str_create(0);
   str_append(&ef.strtab, 0);
   ef.symtab = vec_create(sizeof(Elf32_Sym));
@@ -104,6 +136,7 @@ struct elf_file ef_create() {
   ef.reltext = vec_create(sizeof(Elf32_Rel));
 
   ef.shn_text = ef_add_section(&ef, ".text", SHT_PROGBITS, SHF_ALLOC | SHF_EXECINSTR, 0, 0, 1, 0);
+  ef.shn_data = ef_add_section(&ef, ".data", SHT_PROGBITS, SHF_ALLOC | SHF_WRITE, 0, 0, 1, 0);
   ef.shn_shstrtab = ef_add_section(&ef, ".shstrtab", SHT_STRTAB, 0, 0, 0, 1, 0);
   ehdr->e_shstrndx = ef.shn_shstrtab;
   ef.shn_strtab = ef_add_section(&ef, ".strtab", SHT_STRTAB, 0, 0, 0, 1, 0);
@@ -151,14 +184,18 @@ static int ef_place_section(struct elf_file* ef, Elf32_Shdr* sh, int off) {
  * Finalize the content of section header and then elf header (e.g. shoff)
  * by 'virtually' write the elf file.
  */
-static void ef_freeze(struct elf_file* ef) {
+static void ef_freeze(struct elf_file* ef, struct asctx* ctx) {
   // virtually place the Ehdr
   int next_off = sizeof(Elf32_Ehdr);
 
-  // text section
-  Elf32_Shdr* text_shdr = vec_get_item(&ef->shtab, ef->shn_text);
-  text_shdr->sh_size = ef->code.len;
-  next_off = ef_place_section(ef, text_shdr, next_off);
+  // freeze all sections in asctx. This will include .text, .data
+  VEC_FOREACH(&ctx->sectab, struct section, sec) {
+    assert(sec->shn > 0);
+    Elf32_Shdr* shdr = vec_get_item(&ef->shtab, sec->shn);
+    shdr->sh_size = sec->cont.len;
+    shdr->sh_addralign = sec->align;
+    next_off = ef_place_section(ef, shdr, next_off);
+  }
 
   // strtab
   Elf32_Shdr* strtab_shdr = vec_get_item(&ef->shtab, ef->shn_strtab);
@@ -212,7 +249,8 @@ static void ef_write_shtab(struct elf_file* ef, FILE* fp) {
 
 static void ef_add_symbol_from_label_metadata(struct elf_file* ef, const char* name, struct label_metadata* md) {
   int off = md->off;
-  int shn = ef->shn_text; // TODO don't hardcode section to be .text
+  assert(md->section->shn > 0);
+  int shn = md->section->shn;
   int size = md->size;
   int bind = md->bind;
   int type = md->type;
@@ -252,8 +290,8 @@ static void ef_add_symbols_from_labels(struct elf_file* ef, struct asctx* ctx) {
  * An alternative solution is to do in one pass but do necessary back patching
  * in the end.
  */
-static void ef_write(struct elf_file* ef, const char* path) {
-  ef_freeze(ef);
+static void ef_write(struct elf_file* ef, struct asctx* ctx, const char* path) {
+  ef_freeze(ef, ctx);
   assert(ef->ehdr.e_ehsize == sizeof(Elf32_Ehdr));
   assert(ef->ehdr.e_shoff > 0);
   assert(ef->ehdr.e_shnum > 0);
@@ -263,8 +301,10 @@ static void ef_write(struct elf_file* ef, const char* path) {
   fwrite(&(ef->ehdr), sizeof(Elf32_Ehdr), 1, fp);
 
   // write sections
-  Elf32_Shdr* text_shdr = vec_get_item(&ef->shtab, ef->shn_text);
-  ef_write_section(fp, text_shdr, ef->code.buf);
+  VEC_FOREACH(&ctx->sectab, struct section, sec) {
+    Elf32_Shdr* shdr = vec_get_item(&ef->shtab, sec->shn);
+    ef_write_section(fp, shdr, sec->cont.buf);
+  }
 
   // strtab
   Elf32_Shdr* strtab_shdr = vec_get_item(&ef->shtab, ef->shn_strtab);
@@ -337,14 +377,13 @@ static void ef_handle_relocs(struct elf_file* ef, struct asctx* ctx) {
 
     // assign addend to the double-word that will be patched in future
     // TODO: here we assum we are relocating the text section
-    *(uint32_t*) (ef->code.buf + elf_rel.r_offset) = relptr->addend;
+    *(uint32_t*) (ctx->textsec->cont.buf + elf_rel.r_offset) = relptr->addend;
   }
 }
 
 void ef_free(struct elf_file* ef) {
   vec_free(&ef->shtab);
   str_free(&ef->shstrtab);
-  str_free(&ef->code);
   str_free(&ef->strtab);
   vec_free(&ef->symtab);
   vec_free(&ef->reltext);

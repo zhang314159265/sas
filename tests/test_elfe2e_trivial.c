@@ -4,12 +4,14 @@
 
 int main(void) {
   struct elf_file ef = ef_create();
-  ef.code = parse_text_code(NULL, R"(
+  struct asctx ctx = asctx_create();
+  _parse_text_code(&ctx, NULL, R"(
     mov $88, %eax
     ret
   )");
-  ef_add_symbol(&ef, "main", ef.shn_text, 0, ef.code.len, STB_GLOBAL, STT_FUNC);
-  ef_write(&ef, "/tmp/hello.o");
+  ef_add_symbol(&ef, "main", ef.shn_text, 0, ctx.textsec->cont.len, STB_GLOBAL, STT_FUNC);
+  ef_set_shn_in_ctx(&ef, &ctx);
+  ef_write(&ef, &ctx, "/tmp/hello.o");
   printf("bye\n");
   return 0;
 }

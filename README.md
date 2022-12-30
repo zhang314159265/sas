@@ -48,17 +48,19 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 # Scratch
 
 - TODO: convert xx.s to elf using sas
-
-- TODO: use relocation to handle label patch
+  - primesieve
+  - `mersenne_number`
+  - `harmonic_number`
+  - calc24
 
 - TODO: support all the assembly instructions in `test_jit_*`
   - `mersenne_number`
   - `harmonic_number`
   - `calc24`
 
+- TODO: use relocation to handle label patch
 - TODO: think about how to do codegen to handle instructions.
 
-- TODO: gradually use mnemonic for opcode in text code
 - TODO: be able to do relocation for circular calls with cycle size > 1
   - f -> f -> f .. has cycle size 1
   - f -> g -> f .. has cycle size 2
@@ -85,7 +87,6 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
   - roughly done for chapter 2. content for IA-32e mode and AVX are skipped
 	- check mov instruction.
 	- next chapter 6.
-- TODO: use my assembler to assemble hello.s
 
 ## Instruction Format
 Group 1

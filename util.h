@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+#include "check.h"
 
 #define bool int
 #define true 1
@@ -12,6 +13,19 @@
 
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))
+
+static int gcd(int a, int b) {
+  while (b) {
+    int r = a % b;
+    a = b;
+    b = r;
+  }
+  return a;
+}
+
+static int lcd(int a, int b) {
+  return a * b / gcd(a, b);
+}
 
 static int make_align(int val, int align) {
   assert(align > 0);
@@ -39,4 +53,13 @@ char* lenstrdup(const char* src, int len) {
   memcpy(dst, src, len);
   dst[len] = '\0';
   return dst;
+}
+
+int lenstrtoi(const char* s, int len) {
+  const char* scpy = lenstrdup(s, len);
+  char* end = NULL;
+  int ret = strtol(scpy, &end, 10);
+  CHECK(*end == '\0', "Invalid integer string: %s", scpy);
+  free((void*) scpy);
+  return ret;
 }

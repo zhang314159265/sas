@@ -12,7 +12,7 @@ endif
 
 all: hello-libc
 
-sum factoring calc24 harmonic_number mersenne_number primesieve nqueen:
+sum factoring nqueen calc24 harmonic_number mersenne_number primesieve:
 	gcc -m32 $@.c -S -o /tmp/$@.s $(CFLAGS)
 ifeq ($(USE_SAS), 1)
 	../sas /tmp/$@.s /tmp/$@.$(ASNAME).o
@@ -20,7 +20,7 @@ else
 	gcc -m32 /tmp/$@.s -c -o /tmp/$@.$(ASNAME).o
 endif
 	objdump -dr /tmp/$@.$(ASNAME).o > /tmp/$@.asm
-	gcc -m32 /tmp/$@.o $(LDFLAGS)
+	gcc -m32 /tmp/$@.$(ASNAME).o $(LDFLAGS)
 	objdump -d ./a.out > /tmp/$@.fullasm
 ifneq ($(NORUN), 1)
 	./a.out
