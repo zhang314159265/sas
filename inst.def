@@ -87,7 +87,9 @@ ret, 0xc3, "Return to the caller"
 
 seto, 0x0f90/x, "Set r/m8 if overflow (OF=1). The reg field in the ModR/M byte is not used for the setcc instruction and those opcode bits are ignored by the processor. Check jcc for encoding of other setcc instructions."
 
+sal, "Alias to shl"
 shl, 0xd3/4, "logical left shift: shift r/m32 left cl times"
+
 sub, 0x29, "r/m32 - r32"
 sub, 0x2b, "r32 - r/m32"
 sub, 0x83/5, "Substract sign-extended imm8 from r/m32"

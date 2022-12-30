@@ -48,8 +48,7 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 # Scratch
 
 - TODO: convert xx.s to elf using sas
-  - primesieve
-  - `mersenne_number`
+  - `mersenne_number` # done
   - `harmonic_number`
   - calc24
 

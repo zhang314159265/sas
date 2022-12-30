@@ -20,10 +20,6 @@ struct asctx {
   struct dict label2idx;
   struct vec labelmd_list;
 
-  #if 0
-  struct str bin_code; // TODO :remove this field and use current_section instead
-  #endif
-
   struct vec label_patch_list; // similar to relocation but use label definition rather than symbol to resolve
 
   // a table of struct section.
@@ -67,9 +63,6 @@ static struct asctx asctx_create() {
   ctx.rel_list = vec_create(sizeof(struct as_rel_s));
   ctx.label2idx = dict_create();
   ctx.labelmd_list = vec_create(sizeof(struct label_metadata));
-  #if 0
-  ctx.bin_code = str_create(256);
-  #endif
   ctx.label_patch_list = vec_create(sizeof(struct label_patch_entry));
 
   ctx.sectab = vec_create(sizeof(struct section));
@@ -143,6 +136,7 @@ static void asctx_resolve_label_patch(struct asctx* ctx) {
     uint32_t label_off = md->off;
     uint32_t patch_off = patch_entry->off;
 
+    // here we assumbe to patch the text section
     *(uint32_t*)(ctx->textsec->cont.buf + patch_off) = label_off - (patch_off + 4);
   }
 }
@@ -189,9 +183,6 @@ static void asctx_free(struct asctx* ctx) {
   vec_free(&ctx->rel_list);
   dict_free(&ctx->label2idx);
   vec_free(&ctx->labelmd_list);
-  #if 0
-  str_free(&ctx->bin_code);
-  #endif
 
   for (int i = 0; i < ctx->label_patch_list.len; ++i) {
     struct label_patch_entry* item = vec_get_item(&ctx->label_patch_list, i);

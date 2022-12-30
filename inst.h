@@ -31,10 +31,14 @@ enum {
   OPC_cmovo,
   OPC_jo,
   OPC_jmp,
+  OPC_cdq,
+  OPC_idiv,
 
   // have separate entries for movzbl, movzwl so we don't need
   // handle two character size bytes elsewhere.
   OPC_movzbl,
+
+  OPC_shl,
 };
 
 __attribute__((constructor)) static void init_valid_instr_stem() {
@@ -59,6 +63,14 @@ __attribute__((constructor)) static void init_valid_instr_stem() {
   dict_put(&valid_instr_stem, "cmovo", OPC_cmovo);
   dict_put(&valid_instr_stem, "jmp", OPC_jmp);
   dict_put(&valid_instr_stem, "jo", OPC_jo);
+  
+  // alias
+  dict_put(&valid_instr_stem, "cdq", OPC_cdq);
+  dict_put(&valid_instr_stem, "cltd", OPC_cdq);
+
+  dict_put(&valid_instr_stem, "idiv", OPC_idiv);
+  dict_put(&valid_instr_stem, "sal", OPC_shl);
+  dict_put(&valid_instr_stem, "shl", OPC_shl);
 }
 
 bool is_valid_instr_stem(const char* _s, int len) {
@@ -529,6 +541,24 @@ static void handle_cmovo(struct asctx* ctx, struct operand *o1, struct operand *
   emit_modrm_sib_disp(ctx, o2->regidx, o1);
 }
 
+static void handle_idiv(struct asctx* ctx, struct operand* opd, char sizesuf) {
+  if (is_rm32_check(opd, sizesuf)) {
+    emit_opcode(ctx, 0xf7);
+    emit_modrm_sib_disp(ctx, 7, opd);
+  } else {
+    assert(false && "handle_idiv");
+  }
+}
+
+static void handle_shl(struct asctx* ctx, struct operand* o1, struct operand* o2, char sizesuf) {
+  if (is_gpr8(o1) && o1->regidx == 1 && is_rm32_check(o2, sizesuf)) {
+    emit_opcode(ctx, 0xd3);
+    emit_modrm_sib_disp(ctx, 4, o2);
+  } else {
+    assert(false && "handle_shl");
+  }
+}
+
 /*
  * cc_opcode_off is only valid for setcc, jcc, cmovcc instructions.
  * For others instructions, it should be -1.
@@ -592,6 +622,15 @@ static void handle_instr(struct asctx* ctx, const char* opstem, struct operand *
       break;
     case OPC_jo: case OPC_jmp:
       handle_jmp(ctx, o1, sizesuf, cc_opcode_off);
+      break;
+    case OPC_cdq:
+      emit_opcode(ctx, 0x99);
+      break;
+    case OPC_idiv:
+      handle_idiv(ctx, o1, sizesuf);
+      break;
+    case OPC_shl:
+      handle_shl(ctx, o1, o2, sizesuf);
       break;
     default:
       printf("handle instruction %s", opstem);

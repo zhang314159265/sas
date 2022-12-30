@@ -8,7 +8,8 @@ cd ./`dirname $0`
 # TODO: uncomment this once all are supported
 # all_targets=`make -qp | awk -F ':' '/^[a-zA-Z0-9][^=]*:([^=]|$)/ { split($1, A, / /); for(i in A) print(A[i]); }' | sort -u | grep -v 'all\|Makefile\|^hello$'`
 
-all_targets="hello-libc sum factoring nqueen"
+all_targets="hello-libc sum factoring nqueen primesieve mersenne_number"
+# all_targets="mersenne_number"
 
 # override all_targets from command line
 if [ $# -ne 0 ]; then
