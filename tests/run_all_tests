@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+
+for targ in `cat Makefile | grep "^test_.*" | sed 's/://'`; do
+  echo "= running $targ ="
+  make $targ
+done
+
+echo "ALL PASS!"

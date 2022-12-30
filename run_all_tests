@@ -1,10 +1,8 @@
 #!/bin/bash
-set -e
 
-cd tests
-for targ in `cat Makefile | grep "^test_.*" | sed 's/://'`; do
-  echo " .. running $targ .."
-  make $targ
-done
+set -ex
 
-echo "ALL PASS!"
+cd tests; ./run_all_tests; cd -
+cd examples; ./run_all_tests; cd -
+
+echo "ROOT LEVEL ALL PASS!"

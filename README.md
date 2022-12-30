@@ -36,11 +36,14 @@ I decide to use C rather than C++ so it's easy to exclude the C++ lib dependenci
 - [glibc ELF header](https://github.com/bminor/glibc/blob/master/elf/elf.h)
 - [ELF format - wikipedian](https://en.wikipedia.org/wiki/Executable_and_Linkable_Format)
 - [ELF Spec](https://refspecs.linuxbase.org/elf/elf.pdf)
+- [make manual](https://www.gnu.org/software/make/manual/make.html): check chapter 7 for the conditional parts of makefiles.
+- [A Stackoverflow page showing how to get all the targets from a make file](https://unix.stackexchange.com/questions/230047/how-to-list-all-targets-in-make): The page also mentions the solution is the same way used in bash tab completetion for make.
 
 # Scratch
 
 - WIP: convert examples/hello-libc.s to elf
   - TODO: add tests in examples/ to make sure sas can replace gas
+    - do it for hello-libc.s for now and do it for more programs
 
 - TODO: use relocation to handle label patch
 
