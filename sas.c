@@ -23,13 +23,13 @@ int main(int argc, char **argv) {
   str_hexdump(&ctx.bin_code);
 
   struct elf_file ef = ef_create();
+  asctx_resolve_label_patch(&ctx); // TODO handle label patch with relocation
   ef.code = str_move(&ctx.bin_code);
 
   ef_add_symbols_from_labels(&ef, &ctx);
   ef_dump_syms(&ef);
 
   // handle relocation
-  asctx_resolve_label_patch(&ctx); // TODO handle label patch with relocation
   ef_handle_relocs(&ef, &ctx);
 
   ef_write(&ef, argv[2]);

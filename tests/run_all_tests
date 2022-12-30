@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+cd ./`dirname $0`
+
 for targ in `cat Makefile | grep "^test_.*" | sed 's/://'`; do
   echo "= running $targ ="
   make $targ

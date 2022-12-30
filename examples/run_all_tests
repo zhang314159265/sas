@@ -1,26 +1,30 @@
 #!/bin/bash
 
-set -ex
+set -e
+
+cd ./`dirname $0`
 
 # TODO: uncomment this once all are supported
 # all_targets=`make -qp | awk -F ':' '/^[a-zA-Z0-9][^=]*:([^=]|$)/ { split($1, A, / /); for(i in A) print(A[i]); }' | sort -u | grep -v 'all\|Makefile\|^hello$'`
 
-all_targets="hello-libc"
+all_targets="hello-libc sum"
 
 # override all_targets from command line
 if [ $# -ne 0 ]; then
   all_targets=$@
 fi
 
+# build sas
+cd ..; make; cd -
 echo "all targets: $all_targets"
 
 for targ in $all_targets; do
   echo "= running $targ ="
-  echo "  - using gas"
+  echo "  -- using gas --"
   make NORUN=1 $targ
   # TODO: need provide stdin for calc24 to avoid interacting with the user
   ./a.out 2>&1 | tee /tmp/baseline.out
-  echo "  = using sas"
+  echo "  -- using sas --"
   make NORUN=1 USE_SAS=1 $targ
   ./a.out 2>&1 | tee /tmp/test.out
   cmp -s /tmp/baseline.out /tmp/test.out

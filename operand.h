@@ -199,7 +199,7 @@ static int parse_imm(const char*s, int32_t* pimm, int* reloc_imm) {
     return -1;
   }
   ++s;
-  if (isalpha(*s) || *s == '_') {
+  if (isalpha(*s) || *s == '_' || *s == '.') {
     *reloc_imm = 1; 
     // TODO: validate that it's a vaild identifier?
     *pimm = 0;
@@ -243,7 +243,7 @@ static int parse_mem(const char* s, struct operand* op) {
     cur = skip_spaces(cur, end);
     assert(*cur == '(' || !*cur);
 
-    if (isalpha(*dispstr) || *dispstr == '_') {
+    if (isalpha(*dispstr) || *dispstr == '_' || *dispstr == '.') {
       // symbol as displacement
       op->disp_sym = dispstr;
       status = 0;

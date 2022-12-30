@@ -4,16 +4,22 @@ LDFLAGS=-lm -lreadline
 USE_SAS = 
 NORUN =
 
+ifeq ($(USE_SAS), 1)
+ASNAME=sas
+else
+ASNAME=gas
+endif
+
 all: hello-libc
 
-factoring sum calc24 harmonic_number mersenne_number primesieve nqueen:
+sum factoring calc24 harmonic_number mersenne_number primesieve nqueen:
 	gcc -m32 $@.c -S -o /tmp/$@.s $(CFLAGS)
 ifeq ($(USE_SAS), 1)
-	../sas /tmp/$@.s /tmp/$@.o
+	../sas /tmp/$@.s /tmp/$@.$(ASNAME).o
 else
-	gcc -m32 /tmp/$@.s -c -o /tmp/$@.o
+	gcc -m32 /tmp/$@.s -c -o /tmp/$@.$(ASNAME).o
 endif
-	objdump -dr /tmp/$@.o > /tmp/$@.asm
+	objdump -dr /tmp/$@.$(ASNAME).o > /tmp/$@.asm
 	gcc -m32 /tmp/$@.o $(LDFLAGS)
 	objdump -d ./a.out > /tmp/$@.fullasm
 ifneq ($(NORUN), 1)

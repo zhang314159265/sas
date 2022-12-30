@@ -45,24 +45,22 @@ void parse_directive(struct asctx* ctx, const char* directive, const char* cur, 
     md->bind = STB_GLOBAL;
     free((void*) label);
   } else if (strcmp(directive, ".string") == 0) {
-    const char* tokenend = gettoken(cur, end);
-    assert(tokenend);
-    assert(tokenend == end);
-    assert(tokenend - cur >= 2);
+    assert(end - cur >= 2);
     assert(*cur == '"');
-    assert(tokenend[-1] == '"');
+    assert(end[-1] == '"');
 
     // NOTE: looks like the assembler need to handle escape sequence!
     // otherwise printf will printf '\n' as 2 characters literally.
     // In theory we could also let printf to handle the escaping.
     // The most important thing is, exactly one of compiler/assembler/
     // library should do the escape.
-    char *s = lenstrdup(cur + 1, tokenend - cur - 2);
+    char *s = lenstrdup(cur + 1, end - cur - 2);
     unescape(s);
     // TODO: putting everything including the string to .text for now
     str_concat(&ctx->bin_code, s);
   } else {
-    FAIL("can not handle directive %s", directive);
+    // ignore all others directives
+    printf("WARNING: ignore directive '%s'\n", directive);
   }
 }
 
@@ -93,7 +91,10 @@ void parse_text_code_line(struct asctx* ctx, const char* line, int linelen) {
 
   // handle label
 	const char *first_colon = NULL;
-	for (const char *p = cur; p != end; ++p) {
+  // dont look at ':' beyond the next space so
+  //   .ident  "GCC: (Ubuntu 11.3.0-1ubuntu1~22.04) 11.3.0"
+  // is not mistakenly treated as a label.
+	for (const char *p = cur; p != end && !isspace(*p); ++p) {
 		if (*p == ':') {
 			first_colon = p;
 			break;
